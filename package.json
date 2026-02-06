@@ -1,0 +1,25 @@
+{
+  "name": "assisterr-agent-hackathon",
+  "version": "0.1.0",
+  "description": "Agent Proof-of-Intelligence on Solana",
+  "scripts": {
+    "test": "anchor test",
+    "build": "anchor build",
+    "deploy": "anchor deploy"
+  },
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.32.0",
+    "@solana/web3.js": "^1.91.0"
+  },
+  "devDependencies": {
+    "@types/bn.js": "^5.2.0",
+    "@types/chai": "^4.3.0",
+    "@types/mocha": "^10.0.0",
+    "@types/node": "^25.2.1",
+    "bn.js": "^5.2.2",
+    "chai": "^4.3.7",
+    "mocha": "^10.2.0",
+    "ts-mocha": "^10.0.0",
+    "typescript": "^5.0.0"
+  }
+}
