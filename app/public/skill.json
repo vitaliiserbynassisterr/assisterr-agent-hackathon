@@ -23,7 +23,7 @@
   ],
 
   "api": {
-    "base_url": "http://localhost:8000",
+    "base_url": "https://agent-poi-hackathon.vercel.app",
     "version": "v1",
     "endpoints": {
       "status": {
