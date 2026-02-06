@@ -181,41 +181,95 @@ export default function Home() {
         {registryInfo && (
           <div className="mb-10">
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-4">
-              {[
-                { label: "Agents", value: registryInfo.totalAgents.toString(), color: "var(--accent-primary)", icon: "🤖" },
-                { label: "Verified", value: agents.filter(a => a.verified).length.toString(), color: "#10b981", icon: "✓" },
-                { label: "Challenges", value: agents.reduce((sum, a) => sum + a.challengesPassed + a.challengesFailed, 0).toString(), color: "#3b82f6", icon: "⚡" },
-                {
-                  label: "Pass Rate",
-                  value: agents.length > 0
+              {/* Agents */}
+              <div className="stat-card p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-[var(--accent-primary)]">
+                    <rect x="3" y="4" width="18" height="12" rx="2" stroke="currentColor" strokeWidth="2"/>
+                    <circle cx="9" cy="10" r="2" fill="currentColor"/>
+                    <circle cx="15" cy="10" r="2" fill="currentColor"/>
+                    <path d="M8 20h8M12 16v4" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                  </svg>
+                  <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider">Agents</span>
+                </div>
+                <div className="text-2xl font-bold text-[var(--accent-primary)]">
+                  {registryInfo.totalAgents.toString()}
+                </div>
+              </div>
+
+              {/* Verified */}
+              <div className="stat-card p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-[#10b981]">
+                    <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" stroke="currentColor" strokeWidth="2"/>
+                    <path d="M9 12l2 2 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider">Verified</span>
+                </div>
+                <div className="text-2xl font-bold text-[#10b981]">
+                  {agents.filter(a => a.verified).length}
+                </div>
+              </div>
+
+              {/* Challenges */}
+              <div className="stat-card p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-[#3b82f6]">
+                    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider">Challenges</span>
+                </div>
+                <div className="text-2xl font-bold text-[#3b82f6]">
+                  {agents.reduce((sum, a) => sum + a.challengesPassed + a.challengesFailed, 0)}
+                </div>
+              </div>
+
+              {/* Pass Rate */}
+              <div className="stat-card p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-[#f59e0b]">
+                    <path d="M18 20V10M12 20V4M6 20v-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider">Pass Rate</span>
+                </div>
+                <div className="text-2xl font-bold text-[#f59e0b]">
+                  {agents.length > 0
                     ? Math.round(
                         (agents.reduce((sum, a) => sum + a.challengesPassed, 0) /
                         Math.max(1, agents.reduce((sum, a) => sum + a.challengesPassed + a.challengesFailed, 0))) * 100
                       ) + "%"
-                    : "0%",
-                  color: "#f59e0b",
-                  icon: "📊"
-                },
-                {
-                  label: "Avg Score",
-                  value: agents.length > 0
-                    ? (agents.reduce((sum, a) => sum + a.reputationScore, 0) / agents.length / 100).toFixed(1)
-                    : "0",
-                  color: "#a855f7",
-                  icon: "⭐"
-                },
-                { label: "Network", value: "Devnet", color: "#22d3ee", icon: "🌐" },
-              ].map((stat, i) => (
-                <div key={i} className="stat-card p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-lg">{stat.icon}</span>
-                    <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider">{stat.label}</span>
-                  </div>
-                  <div className="text-2xl font-bold" style={{ color: stat.color }}>
-                    {stat.value}
-                  </div>
+                    : "0%"}
                 </div>
-              ))}
+              </div>
+
+              {/* Avg Score */}
+              <div className="stat-card p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-[#a855f7]">
+                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider">Avg Score</span>
+                </div>
+                <div className="text-2xl font-bold text-[#a855f7]">
+                  {agents.length > 0
+                    ? (agents.reduce((sum, a) => sum + a.reputationScore, 0) / agents.length / 100).toFixed(1)
+                    : "0"}
+                </div>
+              </div>
+
+              {/* Network */}
+              <div className="stat-card p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-[#22d3ee]">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
+                    <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" stroke="currentColor" strokeWidth="2"/>
+                  </svg>
+                  <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider">Network</span>
+                </div>
+                <div className="text-2xl font-bold text-[#22d3ee]">
+                  Devnet
+                </div>
+              </div>
             </div>
 
             {/* Program info bar */}
