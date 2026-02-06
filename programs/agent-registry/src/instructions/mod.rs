@@ -6,6 +6,7 @@ pub mod verify_agent;
 pub mod update_reputation;
 pub mod create_challenge;
 pub mod submit_response;
+pub mod expire_challenge;
 pub mod log_audit;
 
 pub use initialize::*;
@@ -16,4 +17,5 @@ pub use verify_agent::*;
 pub use update_reputation::*;
 pub use create_challenge::*;
 pub use submit_response::*;
+pub use expire_challenge::*;
 pub use log_audit::*;

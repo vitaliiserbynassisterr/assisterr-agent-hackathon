@@ -50,6 +50,9 @@ pub enum RegistryError {
     #[msg("Challenge does not match the agent")]
     ChallengeMismatch,
 
+    #[msg("Challenge has not expired yet")]
+    ChallengeNotExpired,
+
     // SentinelAgent Audit Errors
     #[msg("Details hash must be 64 hex characters (SHA256)")]
     InvalidDetailsHash,

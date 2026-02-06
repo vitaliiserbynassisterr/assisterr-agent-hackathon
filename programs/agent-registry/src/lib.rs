@@ -73,6 +73,13 @@ pub mod agent_registry {
         instructions::submit_response::handler(ctx, response_hash)
     }
 
+    /// Expire a challenge that was not responded to in time
+    /// Can be called by anyone - permissionless cleanup
+    /// Agent receives penalty for not responding
+    pub fn expire_challenge(ctx: Context<ExpireChallenge>) -> Result<()> {
+        instructions::expire_challenge::handler(ctx)
+    }
+
     // ============================================
     // SentinelAgent Security Layer Instructions
     // ============================================
