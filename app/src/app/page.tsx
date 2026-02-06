@@ -3,7 +3,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
-import { BN } from "@coral-xyz/anchor";
 import {
   getAgentPDA,
   AgentData,
@@ -31,7 +30,6 @@ export default function Home() {
     }
 
     try {
-      // Fetch registry state using manual parsing
       const registry = await fetchRegistryState(connection);
       if (!registry) {
         console.log("Registry not initialized yet");
@@ -43,12 +41,8 @@ export default function Home() {
       const totalAgents = registry.totalAgents.toNumber();
       const fetchedAgents: AgentData[] = [];
 
-      // Fetch all agents (simple approach for demo)
-      // In production, use getProgramAccounts with filters
       for (let i = 0; i < Math.min(totalAgents, 50); i++) {
         try {
-          // We need to find agents by iterating through possible owners
-          // For demo, we'll try to fetch our own agents and some known ones
           const [agentPda] = getAgentPDA(registry.admin, i);
           const agent = await fetchAgentAccount(connection, agentPda);
           if (agent) {
@@ -59,7 +53,6 @@ export default function Home() {
         }
       }
 
-      // Also try to fetch current user's agents
       if (wallet.publicKey && !wallet.publicKey.equals(registry.admin)) {
         for (let i = 0; i < 10; i++) {
           try {
@@ -74,7 +67,6 @@ export default function Home() {
         }
       }
 
-      // Sort by reputation (descending)
       fetchedAgents.sort((a, b) => b.reputationScore - a.reputationScore);
       setAgents(fetchedAgents);
     } catch (err: unknown) {
@@ -91,21 +83,34 @@ export default function Home() {
   return (
     <div className="min-h-screen">
       {/* Header */}
-      <header className="border-b border-gray-800 bg-gray-900/50 backdrop-blur-sm sticky top-0 z-50">
+      <header className="border-b border-[rgba(0,240,255,0.1)] bg-[var(--bg-primary)]/80 backdrop-blur-xl sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
-              <span className="text-xl">🤖</span>
+          <div className="flex items-center gap-4">
+            {/* Logo */}
+            <div className="relative w-12 h-12 rounded-xl overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent-primary)] to-[var(--accent-secondary)]" />
+              <div className="absolute inset-[2px] bg-[var(--bg-primary)] rounded-[10px] flex items-center justify-center">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-[var(--accent-primary)]">
+                  <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
             </div>
             <div>
-              <h1 className="text-xl font-bold">Agent PoI</h1>
-              <p className="text-xs text-gray-500">Proof-of-Intelligence on Solana</p>
+              <h1 className="text-xl font-bold tracking-tight">
+                <span className="text-[var(--accent-primary)]">Agent</span>{" "}
+                <span className="text-[var(--text-primary)]">PoI</span>
+              </h1>
+              <p className="text-xs text-[var(--text-muted)]">Proof-of-Intelligence Protocol</p>
             </div>
           </div>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-500 bg-gray-800 px-3 py-1 rounded-full">
-              Devnet
-            </span>
+
+          <div className="flex items-center gap-3">
+            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--bg-elevated)] border border-[rgba(0,240,255,0.1)]">
+              <span className="w-2 h-2 rounded-full bg-[var(--accent-primary)] status-live" />
+              <span className="text-sm text-[var(--text-secondary)]">Devnet</span>
+            </div>
             <WalletMultiButton />
           </div>
         </div>
@@ -113,108 +118,134 @@ export default function Home() {
 
       <main className="max-w-7xl mx-auto px-4 py-8">
         {/* Hero Section */}
-        <div className="bg-gradient-to-r from-purple-900/30 via-gray-900 to-pink-900/30 rounded-2xl p-8 mb-8 border border-purple-800/30">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-            <div>
-              <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">
-                Agent Proof-of-Intelligence
-              </h1>
-              <p className="text-gray-400 max-w-xl">
-                On-chain verification that AI agents are who they claim to be.
-                Cryptographic model hashing, challenge-response verification, and
-                SLM evaluation benchmarks on Solana.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <span className="bg-green-900/50 text-green-400 px-3 py-1 rounded-full text-sm border border-green-700/50 flex items-center gap-1">
-                <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                A2A Ready
-              </span>
-              <span className="bg-blue-900/50 text-blue-400 px-3 py-1 rounded-full text-sm border border-blue-700/50">
-                EU AI Act
-              </span>
-              <span className="bg-purple-900/50 text-purple-400 px-3 py-1 rounded-full text-sm border border-purple-700/50">
-                NFT Identity
-              </span>
-              <span className="bg-yellow-900/50 text-yellow-400 px-3 py-1 rounded-full text-sm border border-yellow-700/50">
-                SLM Eval
-              </span>
+        <div className="relative rounded-2xl overflow-hidden mb-10">
+          {/* Background pattern */}
+          <div className="absolute inset-0 bg-gradient-to-br from-[rgba(0,240,255,0.05)] via-transparent to-[rgba(168,85,247,0.05)]" />
+          <div className="absolute inset-0 opacity-30"
+            style={{
+              backgroundImage: `radial-gradient(circle at 1px 1px, rgba(0,240,255,0.15) 1px, transparent 0)`,
+              backgroundSize: "24px 24px"
+            }}
+          />
+
+          <div className="relative p-8 md:p-12 border border-[rgba(0,240,255,0.1)] rounded-2xl">
+            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8">
+              <div className="max-w-2xl">
+                <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-[var(--text-primary)] mb-4">
+                  Verify AI Agent{" "}
+                  <span className="bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-secondary)] bg-clip-text text-transparent">
+                    Intelligence
+                  </span>
+                </h1>
+                <p className="text-lg text-[var(--text-secondary)] leading-relaxed mb-6">
+                  On-chain cryptographic verification that AI agents are who they claim to be.
+                  Model hash validation, challenge-response protocols, and reputation scoring
+                  built on Solana.
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[rgba(16,185,129,0.1)] border border-[rgba(16,185,129,0.3)] text-[#10b981]">
+                    <span className="w-2 h-2 rounded-full bg-current status-live" />
+                    A2A Protocol Ready
+                  </span>
+                  <span className="px-4 py-2 rounded-lg bg-[rgba(59,130,246,0.1)] border border-[rgba(59,130,246,0.3)] text-[#3b82f6]">
+                    EU AI Act Compliant
+                  </span>
+                  <span className="px-4 py-2 rounded-lg bg-[rgba(168,85,247,0.1)] border border-[rgba(168,85,247,0.3)] text-[#a855f7]">
+                    NFT Identity
+                  </span>
+                </div>
+              </div>
+
+              {/* Hero visual */}
+              <div className="relative hidden lg:block">
+                <div className="w-48 h-48 relative">
+                  {/* Animated rings */}
+                  <div className="absolute inset-0 rounded-full border-2 border-[rgba(0,240,255,0.2)] animate-ping" style={{ animationDuration: "3s" }} />
+                  <div className="absolute inset-4 rounded-full border-2 border-[rgba(168,85,247,0.2)] animate-ping" style={{ animationDuration: "3s", animationDelay: "0.5s" }} />
+                  <div className="absolute inset-8 rounded-full border-2 border-[rgba(0,240,255,0.3)] animate-ping" style={{ animationDuration: "3s", animationDelay: "1s" }} />
+                  {/* Center */}
+                  <div className="absolute inset-12 rounded-full bg-gradient-to-br from-[var(--accent-primary)] to-[var(--accent-secondary)] flex items-center justify-center">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" className="text-[var(--bg-deep)]">
+                      <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="currentColor"/>
+                      <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2"/>
+                      <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2"/>
+                    </svg>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Enhanced Stats - Verifiable Metrics */}
+        {/* Stats Dashboard */}
         {registryInfo && (
-          <div className="mb-8">
-            {/* Primary Stats Row */}
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-4">
-              <div className="bg-gradient-to-br from-purple-900/50 to-purple-800/30 rounded-lg p-4 border border-purple-700/50">
-                <p className="text-purple-300 text-xs uppercase tracking-wide">Agents Registered</p>
-                <p className="text-3xl font-bold text-white">
-                  {registryInfo.totalAgents.toString()}
-                </p>
-              </div>
-              <div className="bg-gradient-to-br from-green-900/50 to-green-800/30 rounded-lg p-4 border border-green-700/50">
-                <p className="text-green-300 text-xs uppercase tracking-wide">Verified</p>
-                <p className="text-3xl font-bold text-green-400">
-                  {agents.filter(a => a.verified).length}
-                </p>
-              </div>
-              <div className="bg-gradient-to-br from-blue-900/50 to-blue-800/30 rounded-lg p-4 border border-blue-700/50">
-                <p className="text-blue-300 text-xs uppercase tracking-wide">Challenges</p>
-                <p className="text-3xl font-bold text-blue-400">
-                  {agents.reduce((sum, a) => sum + a.challengesPassed + a.challengesFailed, 0)}
-                </p>
-              </div>
-              <div className="bg-gradient-to-br from-yellow-900/50 to-yellow-800/30 rounded-lg p-4 border border-yellow-700/50">
-                <p className="text-yellow-300 text-xs uppercase tracking-wide">Pass Rate</p>
-                <p className="text-3xl font-bold text-yellow-400">
-                  {agents.length > 0
+          <div className="mb-10">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-4">
+              {[
+                { label: "Agents", value: registryInfo.totalAgents.toString(), color: "var(--accent-primary)", icon: "🤖" },
+                { label: "Verified", value: agents.filter(a => a.verified).length.toString(), color: "#10b981", icon: "✓" },
+                { label: "Challenges", value: agents.reduce((sum, a) => sum + a.challengesPassed + a.challengesFailed, 0).toString(), color: "#3b82f6", icon: "⚡" },
+                {
+                  label: "Pass Rate",
+                  value: agents.length > 0
                     ? Math.round(
                         (agents.reduce((sum, a) => sum + a.challengesPassed, 0) /
                         Math.max(1, agents.reduce((sum, a) => sum + a.challengesPassed + a.challengesFailed, 0))) * 100
-                      )
-                    : 0}%
-                </p>
-              </div>
-              <div className="bg-gradient-to-br from-pink-900/50 to-pink-800/30 rounded-lg p-4 border border-pink-700/50">
-                <p className="text-pink-300 text-xs uppercase tracking-wide">Avg Reputation</p>
-                <p className="text-3xl font-bold text-pink-400">
-                  {agents.length > 0
+                      ) + "%"
+                    : "0%",
+                  color: "#f59e0b",
+                  icon: "📊"
+                },
+                {
+                  label: "Avg Score",
+                  value: agents.length > 0
                     ? (agents.reduce((sum, a) => sum + a.reputationScore, 0) / agents.length / 100).toFixed(1)
-                    : 0}%
-                </p>
-              </div>
-              <div className="bg-gradient-to-br from-cyan-900/50 to-cyan-800/30 rounded-lg p-4 border border-cyan-700/50">
-                <p className="text-cyan-300 text-xs uppercase tracking-wide">Network</p>
-                <p className="text-2xl font-bold text-cyan-400">Devnet</p>
-              </div>
+                    : "0",
+                  color: "#a855f7",
+                  icon: "⭐"
+                },
+                { label: "Network", value: "Devnet", color: "#22d3ee", icon: "🌐" },
+              ].map((stat, i) => (
+                <div key={i} className="stat-card p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-lg">{stat.icon}</span>
+                    <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider">{stat.label}</span>
+                  </div>
+                  <div className="text-2xl font-bold" style={{ color: stat.color }}>
+                    {stat.value}
+                  </div>
+                </div>
+              ))}
             </div>
 
-            {/* Program Info Bar */}
-            <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700 flex flex-wrap items-center justify-between gap-2 text-xs">
-              <div className="flex items-center gap-2">
-                <span className="text-gray-500">Program:</span>
-                <code className="text-purple-400 bg-gray-900 px-2 py-1 rounded font-mono">
+            {/* Program info bar */}
+            <div className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-xl bg-[var(--bg-elevated)] border border-[rgba(0,240,255,0.1)]">
+              <div className="flex items-center gap-3">
+                <span className="text-[var(--text-muted)] text-sm">Program:</span>
+                <code className="px-3 py-1 rounded bg-[var(--bg-surface)] text-[var(--accent-primary)] font-mono text-sm">
                   EQ2Zv3c...BACL38
                 </code>
                 <a
                   href="https://explorer.solana.com/address/EQ2Zv3cTDBzY1PafPz2WDoup6niUv6X8t9id4PBACL38?cluster=devnet"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-blue-400 hover:underline"
+                  className="text-sm text-[var(--accent-primary)] hover:underline"
                 >
-                  View on Explorer
+                  Explorer →
                 </a>
               </div>
-              <div className="flex items-center gap-4">
-                <a href="/skill.json" className="text-green-400 hover:underline">skill.json</a>
-                <a href="/skill.md" className="text-green-400 hover:underline">skill.md</a>
+              <div className="flex items-center gap-4 text-sm">
+                <a href="/skill.json" className="text-[var(--text-secondary)] hover:text-[var(--accent-primary)] transition-colors">
+                  skill.json
+                </a>
+                <a href="/skill.md" className="text-[var(--text-secondary)] hover:text-[var(--accent-primary)] transition-colors">
+                  skill.md
+                </a>
                 <a
                   href="https://github.com/vitaliiserbynassisterr/assisterr-agent-hackathon"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-gray-400 hover:text-white"
+                  className="text-[var(--text-secondary)] hover:text-[var(--accent-primary)] transition-colors"
                 >
                   GitHub
                 </a>
@@ -223,23 +254,29 @@ export default function Home() {
           </div>
         )}
 
-        {/* Actions */}
+        {/* Agent Leaderboard Section */}
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold">Agent Leaderboard</h2>
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight">Agent Leaderboard</h2>
+            <p className="text-sm text-[var(--text-muted)]">Ranked by reputation score</p>
+          </div>
           {wallet.publicKey && (
             <button
               onClick={() => setShowRegister(!showRegister)}
-              className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors"
+              className={`btn-primary px-6 py-3 rounded-xl text-sm font-semibold ${showRegister ? "opacity-70" : ""}`}
             >
-              {showRegister ? "Close" : "+ Register Agent"}
+              {showRegister ? "Close Form" : "+ Register Agent"}
             </button>
           )}
         </div>
 
         {/* Register Form */}
         {showRegister && wallet.publicKey && (
-          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700 mb-8">
-            <h3 className="text-lg font-semibold mb-4">Register New Agent</h3>
+          <div className="mb-8 p-6 rounded-xl bg-[var(--bg-elevated)] border border-[rgba(0,240,255,0.1)]">
+            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-[var(--accent-primary)]" />
+              Register New Agent
+            </h3>
             <RegisterForm
               onSuccess={() => {
                 setShowRegister(false);
@@ -249,37 +286,53 @@ export default function Home() {
           </div>
         )}
 
-        {/* Agent List */}
+        {/* Agent Grid */}
         {!wallet.publicKey ? (
           <div className="text-center py-20">
-            <div className="text-6xl mb-4">🔐</div>
+            <div className="relative w-24 h-24 mx-auto mb-6">
+              <div className="absolute inset-0 rounded-full bg-gradient-to-br from-[var(--accent-primary)] to-[var(--accent-secondary)] opacity-20 animate-pulse" />
+              <div className="absolute inset-4 rounded-full bg-[var(--bg-elevated)] flex items-center justify-center">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" className="text-[var(--accent-primary)]">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke="currentColor" strokeWidth="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" stroke="currentColor" strokeWidth="2"/>
+                </svg>
+              </div>
+            </div>
             <h3 className="text-xl font-semibold mb-2">Connect Your Wallet</h3>
-            <p className="text-gray-400 mb-6">
-              Connect your Solana wallet to view and register agents
+            <p className="text-[var(--text-muted)] mb-6 max-w-md mx-auto">
+              Connect your Solana wallet to view registered agents and create new entries
             </p>
             <WalletMultiButton />
           </div>
         ) : loading ? (
           <div className="text-center py-20">
-            <div className="animate-spin text-4xl mb-4">⚡</div>
-            <p className="text-gray-400">Loading agents...</p>
+            <div className="relative w-16 h-16 mx-auto mb-6">
+              <div className="absolute inset-0 rounded-full border-4 border-[var(--bg-surface)]" />
+              <div className="absolute inset-0 rounded-full border-4 border-t-[var(--accent-primary)] animate-spin" />
+            </div>
+            <p className="text-[var(--text-muted)]">Loading agents from Solana...</p>
           </div>
         ) : agents.length === 0 ? (
           <div className="text-center py-20">
-            <div className="text-6xl mb-4">🤖</div>
-            <h3 className="text-xl font-semibold mb-2">No Agents Yet</h3>
-            <p className="text-gray-400 mb-6">
-              Be the first to register an AI agent on-chain!
+            <div className="relative w-24 h-24 mx-auto mb-6">
+              <div className="absolute inset-0 rounded-full bg-gradient-to-br from-[var(--accent-primary)] to-[var(--accent-secondary)] opacity-20" />
+              <div className="absolute inset-4 rounded-full bg-[var(--bg-elevated)] flex items-center justify-center text-4xl">
+                🤖
+              </div>
+            </div>
+            <h3 className="text-xl font-semibold mb-2">No Agents Registered</h3>
+            <p className="text-[var(--text-muted)] mb-6 max-w-md mx-auto">
+              Be the first to register an AI agent on-chain and establish its verified identity
             </p>
             <button
               onClick={() => setShowRegister(true)}
-              className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg transition-colors"
+              className="btn-primary px-8 py-3 rounded-xl text-sm font-semibold"
             >
               Register First Agent
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {agents.map((agent, idx) => (
               <AgentCard
                 key={agent.agentId.toString()}
@@ -291,7 +344,7 @@ export default function Home() {
           </div>
         )}
 
-        {/* Security Dashboard - SentinelAgent Layer */}
+        {/* Security Dashboard */}
         {wallet.publicKey && agents.length > 0 && (
           <div className="mt-12">
             <SecurityDashboard agents={agents} />
@@ -300,21 +353,23 @@ export default function Home() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-gray-800 mt-20 py-8 text-center text-gray-500 text-sm">
-        <p>
-          Built for{" "}
-          <a
-            href="https://www.colosseum.org/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-purple-400 hover:underline"
-          >
-            Colosseum Agent Hackathon
-          </a>
-        </p>
-        <p className="mt-2">
-          Agent Proof-of-Intelligence | Assisterr Team
-        </p>
+      <footer className="border-t border-[rgba(0,240,255,0.1)] mt-20 py-8">
+        <div className="max-w-7xl mx-auto px-4 text-center">
+          <p className="text-[var(--text-muted)] text-sm">
+            Built for{" "}
+            <a
+              href="https://www.colosseum.org/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[var(--accent-primary)] hover:underline"
+            >
+              Colosseum Agent Hackathon
+            </a>
+          </p>
+          <p className="text-[var(--text-muted)] text-xs mt-2">
+            Agent Proof-of-Intelligence Protocol • Assisterr Team
+          </p>
+        </div>
       </footer>
     </div>
   );

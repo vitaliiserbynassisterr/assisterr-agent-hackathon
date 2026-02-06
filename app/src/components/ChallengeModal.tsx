@@ -18,10 +18,6 @@ interface ChallengeModalProps {
   onSuccess?: () => void;
 }
 
-/**
- * Modal for creating a new challenge for an agent
- * Implements the Proof-of-Intelligence challenge-response pattern
- */
 export function ChallengeModal({
   agent,
   agentPda,
@@ -48,7 +44,6 @@ export function ChallengeModal({
         return;
       }
 
-      // Validate inputs
       if (formData.question.trim().length < 10) {
         setError("Question must be at least 10 characters");
         return;
@@ -65,14 +60,9 @@ export function ChallengeModal({
 
       try {
         const program = getProgram(connection, wallet);
-
-        // Generate hash of expected answer (SHA256)
         const expectedHash = await hashAnswer(formData.expectedAnswer.trim());
-
-        // Derive challenge PDA
         const [challengePda] = getChallengePDA(agentPda, wallet.publicKey);
 
-        // Create the challenge on-chain
         const tx = await program.methods
           .createChallenge(formData.question.trim(), expectedHash)
           .accounts({
@@ -86,7 +76,6 @@ export function ChallengeModal({
         setSuccess(`Challenge created! TX: ${tx.substring(0, 16)}...`);
         setFormData({ question: "", expectedAnswer: "" });
 
-        // Close modal after short delay
         setTimeout(() => {
           onSuccess?.();
           onClose();
@@ -104,28 +93,44 @@ export function ChallengeModal({
   );
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-800 rounded-lg p-6 max-w-lg w-full border border-gray-700">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="text-xl font-bold text-white">
-              Challenge Agent: {agent.name}
-            </h2>
-            <p className="text-sm text-gray-400 mt-1">
-              Test the agent&apos;s intelligence with a question
-            </p>
+    <div className="fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-4">
+      <div
+        className="bg-[var(--bg-elevated)] rounded-2xl max-w-lg w-full border border-[rgba(0,240,255,0.1)] shadow-2xl overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="p-6 border-b border-[rgba(0,240,255,0.1)]">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[var(--accent-primary)] to-[var(--accent-secondary)] flex items-center justify-center">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-[var(--bg-deep)]">
+                  <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-[var(--text-primary)]">
+                  Challenge Agent
+                </h2>
+                <p className="text-sm text-[var(--text-muted)]">
+                  {agent.name}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="w-8 h-8 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-primary)] flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+              aria-label="Close modal"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M18 6L6 18M6 6l12 12"/>
+              </svg>
+            </button>
           </div>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-white transition-colors text-2xl"
-          >
-            &times;
-          </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="p-6 space-y-5">
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">
+            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
               Question
             </label>
             <textarea
@@ -133,20 +138,20 @@ export function ChallengeModal({
               onChange={(e) =>
                 setFormData({ ...formData, question: e.target.value })
               }
-              className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500 resize-none"
+              className="input-neural w-full rounded-lg px-4 py-3 text-[var(--text-primary)] resize-none"
               placeholder="Ask the agent a question to verify its intelligence..."
               rows={3}
               required
               minLength={10}
               maxLength={256}
             />
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-[var(--text-muted)] mt-2">
               {formData.question.length}/256 characters
             </p>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">
+            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
               Expected Answer
             </label>
             <input
@@ -155,60 +160,88 @@ export function ChallengeModal({
               onChange={(e) =>
                 setFormData({ ...formData, expectedAnswer: e.target.value })
               }
-              className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-purple-500"
+              className="input-neural w-full rounded-lg px-4 py-3 text-[var(--text-primary)]"
               placeholder="The correct answer the agent should provide"
               required
             />
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-[var(--text-muted)] mt-2">
               The answer will be hashed (SHA256) before storing on-chain
             </p>
           </div>
 
-          <div className="bg-gray-700/50 rounded-lg p-4 text-sm">
-            <h4 className="font-medium text-purple-400 mb-2">
+          {/* How it works */}
+          <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[rgba(0,240,255,0.05)]">
+            <h4 className="font-medium text-[var(--accent-primary)] text-sm mb-3 flex items-center gap-2">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-[var(--accent-primary)]">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
+                <path d="M12 16v-4M12 8h.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+              </svg>
               How Challenges Work
             </h4>
-            <ul className="text-gray-300 space-y-1 text-xs">
-              <li>
-                1. Your question is stored on-chain with a hash of the expected
-                answer
+            <ol className="text-xs text-[var(--text-secondary)] space-y-2">
+              <li className="flex items-start gap-2">
+                <span className="w-5 h-5 rounded-full bg-[rgba(0,240,255,0.1)] text-[var(--accent-primary)] flex items-center justify-center flex-shrink-0 text-[10px] font-bold">1</span>
+                <span>Your question is stored on-chain with a hash of the expected answer</span>
               </li>
-              <li>
-                2. The agent has 24 hours to respond with their answer
+              <li className="flex items-start gap-2">
+                <span className="w-5 h-5 rounded-full bg-[rgba(0,240,255,0.1)] text-[var(--accent-primary)] flex items-center justify-center flex-shrink-0 text-[10px] font-bold">2</span>
+                <span>The agent has 24 hours to respond with their answer</span>
               </li>
-              <li>
-                3. If the hash matches, the agent gains +100 reputation
+              <li className="flex items-start gap-2">
+                <span className="w-5 h-5 rounded-full bg-[rgba(16,185,129,0.1)] text-[#10b981] flex items-center justify-center flex-shrink-0 text-[10px] font-bold">3</span>
+                <span>If the hash matches, the agent gains +100 reputation</span>
               </li>
-              <li>4. If it fails, the agent loses -50 reputation</li>
-            </ul>
+              <li className="flex items-start gap-2">
+                <span className="w-5 h-5 rounded-full bg-[rgba(239,68,68,0.1)] text-[#ef4444] flex items-center justify-center flex-shrink-0 text-[10px] font-bold">4</span>
+                <span>If it fails, the agent loses -50 reputation</span>
+              </li>
+            </ol>
           </div>
 
           {error && (
-            <div className="bg-red-900/50 border border-red-500 text-red-300 px-4 py-2 rounded-lg text-sm">
-              {error}
+            <div className="flex items-center gap-3 p-4 rounded-lg bg-[rgba(239,68,68,0.1)] border border-[rgba(239,68,68,0.3)]">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-[#ef4444] flex-shrink-0">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
+                <path d="M12 8v4M12 16h.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+              </svg>
+              <span className="text-sm text-[#ef4444]">{error}</span>
             </div>
           )}
 
           {success && (
-            <div className="bg-green-900/50 border border-green-500 text-green-300 px-4 py-2 rounded-lg text-sm">
-              {success}
+            <div className="flex items-center gap-3 p-4 rounded-lg bg-[rgba(16,185,129,0.1)] border border-[rgba(16,185,129,0.3)]">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-[#10b981] flex-shrink-0">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
+                <path d="M9 12l2 2 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              <span className="text-sm text-[#10b981]">{success}</span>
             </div>
           )}
 
-          <div className="flex gap-3">
+          <div className="flex gap-3 pt-2">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 bg-gray-600 hover:bg-gray-500 text-white py-3 rounded-lg transition-colors"
+              className="flex-1 btn-secondary py-3 rounded-xl font-medium"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading || !wallet.publicKey}
-              className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-medium py-3 rounded-lg transition-colors"
+              className="flex-1 btn-primary py-3 rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? "Creating..." : "Create Challenge"}
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                  </svg>
+                  Creating...
+                </span>
+              ) : (
+                "Create Challenge"
+              )}
             </button>
           </div>
         </form>
