@@ -128,7 +128,10 @@ See `CREDENTIALS.md` (gitignored) for:
 
 ## Known Issues
 
-1. **IDL Parsing**: AnchorPy doesn't support Anchor 0.32+ IDL format. Python agent runs in demo mode with mock Solana data.
+1. **IDL Parsing** (FIXED): AnchorPy doesn't support Anchor 0.30+ IDL format natively.
+   - **Solution**: Use `agent/scripts/convert_idl.py` to convert IDL to legacy format
+   - The legacy IDL is stored at `agent/idl/agent_registry_legacy.json`
+   - Regenerate after program changes: `cd agent && python scripts/convert_idl.py idl/agent_registry.json idl/agent_registry_legacy.json`
 
 2. **Devnet Airdrop Rate Limits**: Use web faucets if CLI airdrop fails:
    - https://faucet.solana.com/

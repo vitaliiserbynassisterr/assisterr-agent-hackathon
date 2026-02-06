@@ -8,7 +8,7 @@ from solders.keypair import Keypair
 from solders.pubkey import Pubkey
 from solders.system_program import ID as SYS_PROGRAM_ID
 from solana.rpc.async_api import AsyncClient
-from anchorpy import Program, Provider, Wallet, Idl
+from anchorpy import Program, Provider, Wallet, Idl, Context
 
 logger = logging.getLogger(__name__)
 
@@ -144,14 +144,15 @@ class AgentRegistryClient:
             name,
             model_hash,
             capabilities,
-            ctx=self.program.provider.get_context(
+            ctx=Context(
                 accounts={
                     "owner": self.keypair.pubkey(),
                     "registry": registry_pda,
                     "agent": agent_pda,
                     "nft_mint": nft_mint,
                     "system_program": SYS_PROGRAM_ID,
-                }
+                },
+                signers=[self.keypair],
             )
         )
 
@@ -202,13 +203,14 @@ class AgentRegistryClient:
 
         tx = await self.program.rpc["submit_response"](
             response_hash,
-            ctx=self.program.provider.get_context(
+            ctx=Context(
                 accounts={
                     "owner": self.keypair.pubkey(),
                     "registry": registry_pda,
                     "agent": agent_pda,
                     "challenge": challenge_pda,
-                }
+                },
+                signers=[self.keypair],
             )
         )
 
@@ -285,13 +287,14 @@ class AgentRegistryClient:
         tx = await self.program.rpc["create_challenge"](
             question,
             expected_hash,
-            ctx=self.program.provider.get_context(
+            ctx=Context(
                 accounts={
                     "challenger": self.keypair.pubkey(),
                     "agent": target_agent_pda,
                     "challenge": challenge_pda,
                     "system_program": SYS_PROGRAM_ID,
-                }
+                },
+                signers=[self.keypair],
             )
         )
 

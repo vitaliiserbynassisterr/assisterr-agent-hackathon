@@ -1,0 +1,611 @@
+{
+  "version": "0.1.0",
+  "name": "agent_registry",
+  "instructions": [
+    {
+      "name": "createChallenge",
+      "accounts": [
+        {
+          "name": "challenger",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "agent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "challenge",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "question",
+          "type": "string"
+        },
+        {
+          "name": "expectedHash",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "createCollection",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "registry",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "collection",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "initialize",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "registry",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "registerAgent",
+      "accounts": [
+        {
+          "name": "owner",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "registry",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "agent",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "nftMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "modelHash",
+          "type": "string"
+        },
+        {
+          "name": "capabilities",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "submitResponse",
+      "accounts": [
+        {
+          "name": "owner",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "registry",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "agent",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "challenge",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "responseHash",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "updateAgent",
+      "accounts": [
+        {
+          "name": "owner",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "agent",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "name",
+          "type": {
+            "option": "string"
+          }
+        },
+        {
+          "name": "capabilities",
+          "type": {
+            "option": "string"
+          }
+        }
+      ]
+    },
+    {
+      "name": "updateReputation",
+      "accounts": [
+        {
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "registry",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "agent",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "delta",
+          "type": "i32"
+        }
+      ]
+    },
+    {
+      "name": "verifyAgent",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "registry",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "agent",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    }
+  ],
+  "accounts": [
+    {
+      "name": "AgentAccount",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "agentId",
+            "type": "u64"
+          },
+          {
+            "name": "owner",
+            "type": "publicKey"
+          },
+          {
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "name": "modelHash",
+            "type": "string"
+          },
+          {
+            "name": "capabilities",
+            "type": "string"
+          },
+          {
+            "name": "reputationScore",
+            "type": "u32"
+          },
+          {
+            "name": "challengesPassed",
+            "type": "u32"
+          },
+          {
+            "name": "challengesFailed",
+            "type": "u32"
+          },
+          {
+            "name": "verified",
+            "type": "bool"
+          },
+          {
+            "name": "createdAt",
+            "type": "i64"
+          },
+          {
+            "name": "updatedAt",
+            "type": "i64"
+          },
+          {
+            "name": "nftMint",
+            "type": "publicKey"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Challenge",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "agent",
+            "type": "publicKey"
+          },
+          {
+            "name": "challenger",
+            "type": "publicKey"
+          },
+          {
+            "name": "question",
+            "type": "string"
+          },
+          {
+            "name": "expectedHash",
+            "type": "string"
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": "ChallengeStatus"
+            }
+          },
+          {
+            "name": "createdAt",
+            "type": "i64"
+          },
+          {
+            "name": "expiresAt",
+            "type": "i64"
+          },
+          {
+            "name": "respondedAt",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RegistryState",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "admin",
+            "type": "publicKey"
+          },
+          {
+            "name": "totalAgents",
+            "type": "u64"
+          },
+          {
+            "name": "collection",
+            "type": "publicKey"
+          },
+          {
+            "name": "collectionInitialized",
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    }
+  ],
+  "types": [
+    {
+      "name": "AgentAccount",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "agentId",
+            "type": "u64"
+          },
+          {
+            "name": "owner",
+            "type": "publicKey"
+          },
+          {
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "name": "modelHash",
+            "type": "string"
+          },
+          {
+            "name": "capabilities",
+            "type": "string"
+          },
+          {
+            "name": "reputationScore",
+            "type": "u32"
+          },
+          {
+            "name": "challengesPassed",
+            "type": "u32"
+          },
+          {
+            "name": "challengesFailed",
+            "type": "u32"
+          },
+          {
+            "name": "verified",
+            "type": "bool"
+          },
+          {
+            "name": "createdAt",
+            "type": "i64"
+          },
+          {
+            "name": "updatedAt",
+            "type": "i64"
+          },
+          {
+            "name": "nftMint",
+            "type": "publicKey"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Challenge",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "agent",
+            "type": "publicKey"
+          },
+          {
+            "name": "challenger",
+            "type": "publicKey"
+          },
+          {
+            "name": "question",
+            "type": "string"
+          },
+          {
+            "name": "expectedHash",
+            "type": "string"
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": "ChallengeStatus"
+            }
+          },
+          {
+            "name": "createdAt",
+            "type": "i64"
+          },
+          {
+            "name": "expiresAt",
+            "type": "i64"
+          },
+          {
+            "name": "respondedAt",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ChallengeStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Pending"
+          },
+          {
+            "name": "Passed"
+          },
+          {
+            "name": "Failed"
+          },
+          {
+            "name": "Expired"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RegistryState",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "admin",
+            "type": "publicKey"
+          },
+          {
+            "name": "totalAgents",
+            "type": "u64"
+          },
+          {
+            "name": "collection",
+            "type": "publicKey"
+          },
+          {
+            "name": "collectionInitialized",
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "NameTooLong",
+      "msg": "Name is too long (max 64 characters)"
+    },
+    {
+      "code": 6001,
+      "name": "InvalidModelHash",
+      "msg": "Model hash is invalid (must be sha256:...)"
+    },
+    {
+      "code": 6002,
+      "name": "CapabilitiesTooLong",
+      "msg": "Capabilities string is too long (max 256 characters)"
+    },
+    {
+      "code": 6003,
+      "name": "AlreadyVerified",
+      "msg": "Agent is already verified"
+    },
+    {
+      "code": 6004,
+      "name": "Unauthorized",
+      "msg": "Unauthorized: only owner can update agent"
+    },
+    {
+      "code": 6005,
+      "name": "ReputationDeltaTooLarge",
+      "msg": "Reputation delta too large"
+    },
+    {
+      "code": 6006,
+      "name": "AgentNotFound",
+      "msg": "Agent not found"
+    },
+    {
+      "code": 6007,
+      "name": "RegistryFull",
+      "msg": "Registry is full"
+    },
+    {
+      "code": 6008,
+      "name": "CollectionAlreadyInitialized",
+      "msg": "Collection has already been initialized"
+    },
+    {
+      "code": 6009,
+      "name": "CollectionNotInitialized",
+      "msg": "Collection must be initialized before registering agents"
+    },
+    {
+      "code": 6010,
+      "name": "QuestionTooLong",
+      "msg": "Question is too long (max 256 characters)"
+    },
+    {
+      "code": 6011,
+      "name": "InvalidExpectedHash",
+      "msg": "Expected hash must be 64 characters (SHA256 hex)"
+    },
+    {
+      "code": 6012,
+      "name": "InvalidResponseHash",
+      "msg": "Response hash must be 64 characters (SHA256 hex)"
+    },
+    {
+      "code": 6013,
+      "name": "ChallengeExpired",
+      "msg": "Challenge has expired"
+    },
+    {
+      "code": 6014,
+      "name": "ChallengeNotPending",
+      "msg": "Challenge is not pending"
+    },
+    {
+      "code": 6015,
+      "name": "ChallengeMismatch",
+      "msg": "Challenge does not match the agent"
+    }
+  ],
+  "metadata": {
+    "address": "EQ2Zv3cTDBzY1PafPz2WDoup6niUv6X8t9id4PBACL38"
+  }
+}

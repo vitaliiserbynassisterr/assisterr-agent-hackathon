@@ -443,24 +443,38 @@ async def lifespan(app: FastAPI):
         )
         await client.connect()
 
-        # Try to register agent or get existing
-        try:
-            result = await client.register_agent(
-                name=AGENT_NAME,
-                model_hash=model_hash,
-                capabilities=AGENT_CAPABILITIES,
-            )
-            agent_info = await client.get_agent(
-                client.keypair.pubkey(),
-                result["agent_id"]
-            )
-            logger.info(f"Agent registered on-chain: {result['agent_pda']}")
-        except Exception as e:
-            if "already in use" in str(e):
-                logger.info("Agent already registered, fetching existing...")
-                # Try to fetch agent 0 (assume it's ours)
-                agent_info = await client.get_agent(client.keypair.pubkey(), 0)
-            else:
+        # First, check if we already have an agent registered under our wallet
+        # Try different agent IDs since we might have registered previously
+        agent_info = None
+        for try_agent_id in range(10):  # Check first 10 possible agent IDs
+            try:
+                existing_agent = await client.get_agent(client.keypair.pubkey(), try_agent_id)
+                if existing_agent:
+                    logger.info(f"Found existing agent registration (ID: {try_agent_id})")
+                    agent_info = existing_agent
+                    break
+            except Exception:
+                continue
+
+        if agent_info is None:
+            # No existing registration found, try to register
+            try:
+                result = await client.register_agent(
+                    name=AGENT_NAME,
+                    model_hash=model_hash,
+                    capabilities=AGENT_CAPABILITIES,
+                )
+                logger.info(f"Agent registered on-chain: {result['agent_pda']} (tx: {result['tx']})")
+
+                # Wait a moment for transaction to confirm
+                await asyncio.sleep(2)
+
+                # Fetch the newly registered agent
+                agent_info = await client.get_agent(
+                    client.keypair.pubkey(),
+                    result["agent_id"]
+                )
+            except Exception as e:
                 logger.error(f"Failed to register agent: {e}")
                 agent_info = {
                     "name": AGENT_NAME,

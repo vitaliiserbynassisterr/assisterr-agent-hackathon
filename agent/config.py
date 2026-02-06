@@ -39,11 +39,20 @@ API_HOST = os.getenv("API_HOST", "0.0.0.0")
 API_PORT = int(os.getenv("API_PORT", "8000"))
 
 # IDL path - flexible for local dev and deployment
+# IMPORTANT: Use legacy IDL format for anchorpy compatibility (Anchor 0.30+ IDL not supported)
 _idl_env = os.getenv("IDL_PATH", "")
 if _idl_env:
     IDL_PATH = Path(_idl_env)
 else:
-    # Try local development path first
+    # Use legacy format IDL (converted from new format for anchorpy compatibility)
+    _legacy_idl = Path(__file__).parent / "idl" / "agent_registry_legacy.json"
     _local_idl = Path(__file__).parent.parent / "target" / "idl" / "agent_registry.json"
     _deploy_idl = Path(__file__).parent / "idl" / "agent_registry.json"
-    IDL_PATH = _local_idl if _local_idl.exists() else _deploy_idl
+
+    # Priority: legacy format > local dev > deploy
+    if _legacy_idl.exists():
+        IDL_PATH = _legacy_idl
+    elif _local_idl.exists():
+        IDL_PATH = _local_idl
+    else:
+        IDL_PATH = _deploy_idl
