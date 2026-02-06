@@ -178,9 +178,10 @@ Focus on demonstrating:
 - Auto-deploys on git push to main
 - URL: https://agent-poi-hackathon.vercel.app
 
-### Python Agent (Not yet deployed)
-- Docker config ready in `agent/Dockerfile`
-- Railway/Render configs in `agent/railway.json`, `agent/render.yaml`
+### Python Agent (Render)
+- URL: https://assisterr-agent-hackathon.onrender.com
+- Health: https://assisterr-agent-hackathon.onrender.com/health
+- Auto-deploys on git push to main
 
 ## Quick Reference
 

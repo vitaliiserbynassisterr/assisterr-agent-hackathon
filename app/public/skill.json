@@ -23,7 +23,7 @@
   ],
 
   "api": {
-    "base_url": "https://agent-poi-hackathon.vercel.app",
+    "base_url": "https://assisterr-agent-hackathon.onrender.com",
     "version": "v1",
     "endpoints": {
       "status": {
