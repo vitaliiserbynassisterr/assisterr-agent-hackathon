@@ -228,3 +228,94 @@ class AgentRegistryClient:
             "created_at": challenge.created_at,
             "expires_at": challenge.expires_at,
         }
+
+    async def discover_agents(self, max_agents: int = 50) -> list[dict]:
+        """
+        Discover all registered agents on the network.
+
+        This is KEY for autonomous agent-to-agent interaction.
+        The agent uses this to find other agents to challenge.
+
+        Args:
+            max_agents: Maximum number of agents to fetch
+
+        Returns:
+            List of agent dictionaries
+        """
+        registry_state = await self.get_registry_state()
+        total_agents = registry_state["total_agents"]
+        admin = Pubkey.from_string(registry_state["admin"])
+
+        agents = []
+        for i in range(min(total_agents, max_agents)):
+            try:
+                agent = await self.get_agent(admin, i)
+                agent["pda"] = str(self._get_agent_pda(admin, i)[0])
+                agent["index"] = i
+                agents.append(agent)
+            except Exception as e:
+                logger.debug(f"Failed to fetch agent {i}: {e}")
+                continue
+
+        logger.info(f"Discovered {len(agents)} agents on network")
+        return agents
+
+    async def create_challenge_for_agent(
+        self,
+        target_agent_pda: Pubkey,
+        question: str,
+        expected_hash: str,
+    ) -> str:
+        """
+        Create a challenge for another agent.
+
+        This enables AUTONOMOUS AGENT-TO-AGENT INTERACTION:
+        Our agent can challenge other agents to verify their intelligence.
+
+        Args:
+            target_agent_pda: The target agent's PDA
+            question: The challenge question
+            expected_hash: SHA256 hash of expected answer
+
+        Returns:
+            Transaction signature
+        """
+        challenge_pda, _ = self._get_challenge_pda(target_agent_pda, self.keypair.pubkey())
+
+        tx = await self.program.rpc["create_challenge"](
+            question,
+            expected_hash,
+            ctx=self.program.provider.get_context(
+                accounts={
+                    "challenger": self.keypair.pubkey(),
+                    "agent": target_agent_pda,
+                    "challenge": challenge_pda,
+                    "system_program": SYS_PROGRAM_ID,
+                }
+            )
+        )
+
+        logger.info(f"Challenge created for agent {target_agent_pda}: {tx}")
+        return str(tx)
+
+    async def get_pending_challenges_for_me(self) -> list[dict]:
+        """
+        Find all pending challenges targeting our agent.
+
+        Returns:
+            List of challenge dictionaries
+        """
+        # This is a simplified version - in production you'd use getProgramAccounts
+        # with filters for the agent field matching our PDA
+        registry_state = await self.get_registry_state()
+
+        # Get our agent info
+        try:
+            my_agent = await self.get_agent(self.keypair.pubkey(), 0)
+            my_agent_pda = self._get_agent_pda(self.keypair.pubkey(), 0)[0]
+        except Exception:
+            return []
+
+        # Note: Full implementation would scan all challenges targeting us
+        # For hackathon demo, we return empty list (challenges found via events)
+        return []
