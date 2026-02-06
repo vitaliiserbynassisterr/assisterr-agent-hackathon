@@ -2,6 +2,12 @@
 
 /* Neural Grid Design System - Agent PoI Dashboard */
 
+/* Force dark mode */
+html, body {
+  background: #050508 !important;
+  color: #f0f4f8 !important;
+}
+
 :root {
   /* Core palette */
   --bg-deep: #050508;

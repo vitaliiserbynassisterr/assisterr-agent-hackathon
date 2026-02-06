@@ -24,9 +24,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className="dark">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-900 text-white`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        style={{
+          background: "var(--bg-deep)",
+          color: "var(--text-primary)",
+        }}
       >
         <AppWalletProvider>{children}</AppWalletProvider>
       </body>
