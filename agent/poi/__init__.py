@@ -2,6 +2,14 @@
 from .model_verifier import compute_model_hash, verify_model, generate_demo_model_hash
 from .challenge_handler import ChallengeHandler
 from .evaluator import SLMEvaluator, EvaluationDomain, EvaluationResult
+from .merkle_audit import (
+    AuditBatcher,
+    AuditEntry,
+    ActionType,
+    compute_merkle_root,
+    compute_merkle_proof,
+    verify_merkle_proof,
+)
 
 __all__ = [
     "compute_model_hash",
@@ -11,4 +19,10 @@ __all__ = [
     "SLMEvaluator",
     "EvaluationDomain",
     "EvaluationResult",
+    "AuditBatcher",
+    "AuditEntry",
+    "ActionType",
+    "compute_merkle_root",
+    "compute_merkle_proof",
+    "verify_merkle_proof",
 ]

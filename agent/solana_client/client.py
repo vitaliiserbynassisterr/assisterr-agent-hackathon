@@ -98,6 +98,24 @@ class AgentRegistryClient:
             self.program_id
         )
 
+    def _get_merkle_summary_pda(self, agent: Pubkey) -> tuple[Pubkey, int]:
+        """Get the Merkle audit summary PDA for an agent"""
+        return Pubkey.find_program_address(
+            [b"merkle_summary", bytes(agent)],
+            self.program_id
+        )
+
+    def _get_merkle_root_pda(self, agent: Pubkey, batch_index: int) -> tuple[Pubkey, int]:
+        """Get a Merkle audit root PDA"""
+        return Pubkey.find_program_address(
+            [
+                b"merkle_audit",
+                bytes(agent),
+                batch_index.to_bytes(8, "little"),
+            ],
+            self.program_id
+        )
+
     async def get_registry_state(self) -> dict:
         """Fetch the registry state"""
         registry_pda, _ = self._get_registry_pda()
@@ -322,3 +340,106 @@ class AgentRegistryClient:
         # Note: Full implementation would scan all challenges targeting us
         # For hackathon demo, we return empty list (challenges found via events)
         return []
+
+    # ============================================
+    # Merkle Audit Methods (Efficient Batch Logging)
+    # ============================================
+
+    async def get_merkle_summary(self, agent_pda: Pubkey) -> Optional[dict]:
+        """
+        Get the Merkle audit summary for an agent.
+
+        Returns:
+            Summary dict or None if no audits exist
+        """
+        summary_pda, _ = self._get_merkle_summary_pda(agent_pda)
+
+        try:
+            summary = await self.program.account["MerkleAuditSummary"].fetch(summary_pda)
+            return {
+                "agent": str(summary.agent),
+                "total_batches": summary.total_batches,
+                "total_entries": summary.total_entries,
+                "last_batch_at": summary.last_batch_at,
+            }
+        except Exception as e:
+            logger.debug(f"No Merkle summary found: {e}")
+            return None
+
+    async def store_merkle_audit(
+        self,
+        agent_pda: str,
+        merkle_root: list[int],
+        entries_count: int,
+    ) -> str:
+        """
+        Store a Merkle audit root on-chain.
+
+        This is the efficient audit pattern:
+        - Collect N audit entries off-chain
+        - Compute Merkle root
+        - Store single root on-chain (1 tx instead of N)
+
+        Args:
+            agent_pda: The agent's PDA as string
+            merkle_root: 32-byte Merkle root as list of ints
+            entries_count: Number of entries in this batch
+
+        Returns:
+            Transaction signature
+        """
+        agent_pubkey = Pubkey.from_string(agent_pda)
+
+        # Get current batch index from summary (or 0 if first batch)
+        summary = await self.get_merkle_summary(agent_pubkey)
+        batch_index = summary["total_batches"] if summary else 0
+
+        summary_pda, _ = self._get_merkle_summary_pda(agent_pubkey)
+        root_pda, _ = self._get_merkle_root_pda(agent_pubkey, batch_index)
+
+        # Convert merkle_root list to bytes array
+        root_bytes = bytes(merkle_root)
+
+        tx = await self.program.rpc["store_merkle_audit"](
+            list(root_bytes),  # [u8; 32]
+            entries_count,
+            ctx=Context(
+                accounts={
+                    "owner": self.keypair.pubkey(),
+                    "agent": agent_pubkey,
+                    "audit_summary": summary_pda,
+                    "audit_root": root_pda,
+                    "system_program": SYS_PROGRAM_ID,
+                },
+                signers=[self.keypair],
+            )
+        )
+
+        logger.info(f"Merkle audit root stored: batch={batch_index}, entries={entries_count}, tx={tx}")
+        return str(tx)
+
+    async def get_merkle_root(self, agent_pda: Pubkey, batch_index: int) -> Optional[dict]:
+        """
+        Get a specific Merkle audit root.
+
+        Args:
+            agent_pda: The agent's PDA
+            batch_index: The batch index
+
+        Returns:
+            Merkle root dict or None
+        """
+        root_pda, _ = self._get_merkle_root_pda(agent_pda, batch_index)
+
+        try:
+            root = await self.program.account["MerkleAuditRoot"].fetch(root_pda)
+            return {
+                "agent": str(root.agent),
+                "merkle_root": bytes(root.merkle_root).hex(),
+                "entries_count": root.entries_count,
+                "timestamp": root.timestamp,
+                "batch_index": root.batch_index,
+            }
+        except Exception as e:
+            logger.debug(f"Merkle root not found: {e}")
+            return None

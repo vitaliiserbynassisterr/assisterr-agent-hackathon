@@ -101,4 +101,19 @@ pub mod agent_registry {
     ) -> Result<instructions::log_audit::AuditStatusResponse> {
         instructions::log_audit::get_audit_status(ctx)
     }
+
+    // ============================================
+    // Merkle Audit (Efficient Batch Logging)
+    // ============================================
+
+    /// Store a Merkle root of batched audit entries
+    /// More gas-efficient: 1 tx for N entries instead of N txs
+    /// Off-chain logs can be verified against the on-chain root
+    pub fn store_merkle_audit(
+        ctx: Context<StoreMerkleAudit>,
+        merkle_root: [u8; 32],
+        entries_count: u32,
+    ) -> Result<()> {
+        instructions::store_merkle_audit::handler(ctx, merkle_root, entries_count)
+    }
 }

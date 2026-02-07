@@ -8,6 +8,7 @@ pub mod create_challenge;
 pub mod submit_response;
 pub mod expire_challenge;
 pub mod log_audit;
+pub mod store_merkle_audit;
 
 pub use initialize::*;
 pub use create_collection::*;
@@ -19,3 +20,4 @@ pub use create_challenge::*;
 pub use submit_response::*;
 pub use expire_challenge::*;
 pub use log_audit::*;
+pub use store_merkle_audit::*;
