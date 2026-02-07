@@ -19,13 +19,40 @@ test.describe('Challenge Creation Flow', () => {
     // Wait for agents to load
     await page.waitForTimeout(2000);
 
-    // Find a different agent card with a Challenge button (skip first which may have existing challenge)
-    const challengeButtons = page.locator('button:has-text("Challenge")');
-    const buttonCount = await challengeButtons.count();
-    console.log('Total Challenge buttons found:', buttonCount);
+    // Find the ChallengeableAgent (registered by different wallet, can be challenged)
+    const challengeableAgent = page.locator('text=/ChallengeableAgent/').first();
+    const hasChallengeable = await challengeableAgent.isVisible().catch(() => false);
+    console.log('Found ChallengeableAgent:', hasChallengeable);
 
-    // Try the last agent (less likely to have existing challenge)
-    const challengeButton = buttonCount > 1 ? challengeButtons.nth(buttonCount - 1) : challengeButtons.first();
+    let challengeButton;
+    if (hasChallengeable) {
+      // Get the parent card and find its Challenge button
+      // The agent name is in a card, find the nearest Challenge button
+      const allCards = await page.locator('[class*="card"], [class*="agent"], [class*="gradient"]').all();
+      console.log('Total card-like elements:', allCards.length);
+
+      // Find the card containing ChallengeableAgent text
+      for (const card of allCards) {
+        const text = await card.textContent().catch(() => '');
+        if (text && text.includes('ChallengeableAgent')) {
+          challengeButton = card.locator('button:has-text("Challenge")').first();
+          const isVisible = await challengeButton.isVisible().catch(() => false);
+          if (isVisible) {
+            console.log('Found Challenge button for ChallengeableAgent');
+            break;
+          }
+        }
+      }
+    }
+
+    // Fallback: try to find any Challenge button we haven't used
+    if (!challengeButton || !(await challengeButton.isVisible().catch(() => false))) {
+      const allButtons = page.locator('button:has-text("Challenge")');
+      const buttonCount = await allButtons.count();
+      console.log('Total Challenge buttons found:', buttonCount);
+      // Try the first button (different from before when we tried last)
+      challengeButton = allButtons.first();
+    }
 
     // Check if challenge button exists
     const buttonExists = await challengeButton.isVisible().catch(() => false);
