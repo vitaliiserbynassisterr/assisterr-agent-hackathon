@@ -45,7 +45,7 @@ from solana_client import AgentRegistryClient
 AGENT_VERSION = "2.0.0-multi"
 CHALLENGE_POLL_INTERVAL = 30
 SELF_EVAL_INTERVAL = 300
-CROSS_AGENT_CHALLENGE_INTERVAL = 120
+CROSS_AGENT_CHALLENGE_INTERVAL = 300
 
 # LLM Judge config (shared across agents)
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
