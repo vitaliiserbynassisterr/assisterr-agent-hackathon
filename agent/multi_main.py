@@ -215,12 +215,18 @@ async def _self_evaluation(state: AgentState):
             domains = [EvaluationDomain.DEFI, EvaluationDomain.SOLANA, EvaluationDomain.SECURITY]
             for domain in domains:
                 _log_activity(state, "self_evaluation", "running", {"domain": domain.value})
+                logger.info(f"[{state.slug}] eval START domain={domain.value} (running in thread pool)")
 
                 def agent_respond(q: str) -> str:
                     return state.challenge_handler.respond_to_challenge(q).answer
 
                 evaluator = SLMEvaluator(agent_response_fn=agent_respond, llm_judge=state.llm_judge)
-                result = evaluator.evaluate(domain)
+                # Run in thread pool to avoid blocking the event loop
+                # (sync LLM calls would block health endpoint responses)
+                t0 = time.monotonic()
+                result = await asyncio.to_thread(evaluator.evaluate, domain)
+                elapsed = time.monotonic() - t0
+                logger.info(f"[{state.slug}] eval DONE domain={domain.value} score={result.score:.1f}% elapsed={elapsed:.1f}s")
 
                 eval_record = {
                     "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -1117,7 +1123,7 @@ def create_agent_app(
             agent_response_fn=agent_respond if request.answers is None else None,
             llm_judge=state.llm_judge,
         )
-        result = evaluator.evaluate(eval_domain, request.answers)
+        result = await asyncio.to_thread(evaluator.evaluate, eval_domain, request.answers)
         return EvaluationResponse(
             domain=result.domain,
             questions_total=result.questions_total,
@@ -1149,7 +1155,7 @@ def create_agent_app(
                 return state.challenge_handler.respond_to_challenge(q).answer
 
             evaluator = SLMEvaluator(agent_response_fn=agent_respond, llm_judge=state.llm_judge)
-            result = evaluator.evaluate(domain)
+            result = await asyncio.to_thread(evaluator.evaluate, domain)
             domain_results[domain.value] = {
                 "weighted_score": result.weighted_score,
                 "certification_level": result.certification_level,
@@ -1369,9 +1375,12 @@ async def gateway_lifespan(app: FastAPI):
     logger.info("=" * 70)
 
     # Initialize all agents (sub-app lifespans don't auto-run when mounted)
-    for s in all_states:
+    for i, s in enumerate(all_states):
+        logger.info(f"Initializing agent {i+1}/{len(all_states)}: {s.name}")
         await s._init()
+        logger.info(f"Agent {s.name} initialized OK")
 
+    logger.info(f"All {len(all_states)} agents initialized - gateway READY to serve HTTP")
     yield
 
     # Shutdown all agents
@@ -1453,9 +1462,13 @@ async def gateway_root():
     }
 
 
+_health_check_count = 0
+
 @gateway.get("/health")
 async def gateway_health():
     """Gateway health check - aggregates all agents."""
+    global _health_check_count
+    _health_check_count += 1
     agent_health = []
     all_healthy = True
     for st in all_states:
@@ -1468,10 +1481,15 @@ async def gateway_health():
             "healthy": healthy,
             "agent_id": st.agent_info.get("agent_id", -1) if st.agent_info else -1,
         })
+    status = "healthy" if all_healthy else "degraded"
+    # Log every health check for debugging 502 issues
+    if _health_check_count <= 5 or _health_check_count % 10 == 0:
+        logger.info(f"Health check #{_health_check_count}: status={status} agents={[a['slug'] + '=' + str(a['healthy']) for a in agent_health]}")
     return {
-        "status": "healthy" if all_healthy else "degraded",
+        "status": status,
         "gateway_version": AGENT_VERSION,
         "agents": agent_health,
+        "health_check_count": _health_check_count,
     }
 
 

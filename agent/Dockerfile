@@ -32,9 +32,8 @@ ENV MULTI_AGENT=false
 # Expose API port (Render uses PORT env var, default 10000)
 EXPOSE 8000 10000
 
-# Health check - works for both modes
-HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
-    CMD python -c "import os, httpx; port=os.getenv('PORT', os.getenv('API_PORT','8000')); httpx.get(f'http://localhost:{port}/health')" || exit 1
+# Render handles health checks via healthCheckPath; no Docker HEALTHCHECK needed
+# (Docker HEALTHCHECK restarts container when sync LLM calls block event loop)
 
 # Entrypoint script: choose single or multi-agent mode
 CMD if [ "$MULTI_AGENT" = "true" ]; then \
