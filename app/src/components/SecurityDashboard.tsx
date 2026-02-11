@@ -25,7 +25,7 @@ export function SecurityDashboard({ agents }: SecurityDashboardProps) {
   const [activityFeed, setActivityFeed] = useState<ActivityEntry[]>([]);
   const [networkStats, setNetworkStats] = useState({
     totalAgents: 0,
-    verifiedAgents: 0,
+    certifiedAgents: 0,
     avgReputation: 0,
     totalChallenges: 0,
     totalPassed: 0,
@@ -125,18 +125,21 @@ export function SecurityDashboard({ agents }: SecurityDashboardProps) {
   useEffect(() => {
     if (agents.length === 0) return;
 
-    const verifiedCount = agents.filter((a) => a.verified).length;
     const avgRep = agents.reduce((sum, a) => sum + a.reputationScore, 0) / agents.length / 100;
     const totalChallenges = agents.reduce(
       (sum, a) => sum + a.challengesPassed + a.challengesFailed,
       0
     );
-
     const totalPassed = agents.reduce((sum, a) => sum + a.challengesPassed, 0);
+
+    // Fetch certified count from agent API
+    fetch("/api/a2a?endpoint=certifications").then(res => res.ok ? res.json() : null).then(data => {
+      setNetworkStats(prev => ({ ...prev, certifiedAgents: data?.total_certifications ?? prev.certifiedAgents }));
+    }).catch(() => {});
 
     setNetworkStats({
       totalAgents: agents.length,
-      verifiedAgents: verifiedCount,
+      certifiedAgents: 0,
       avgReputation: avgRep,
       totalChallenges,
       totalPassed,
@@ -191,38 +194,59 @@ export function SecurityDashboard({ agents }: SecurityDashboardProps) {
   };
 
   const getActionIcon = (action: string) => {
-    const icons: Record<string, string> = {
-      "Agent Registered": "📝",
-      "Agent Verified": "✓",
-      "Challenge Passed": "✓",
-      "Challenge Failed": "✗",
-      "A2A Challenge Passed": "⚡",
-      "A2A Challenge Failed": "⚡",
-      "A2A Challenge": "⚡",
-      "Security Alert": "⚠",
-    };
-    return icons[action] || "•";
-  };
-
-  const getIconStyle = (action: string, riskLevel: ActivityEntry["riskLevel"]) => {
+    // A2A challenges — bolt icon
     if (action.startsWith("A2A")) {
-      return {
-        background: "rgba(0,240,255,0.1)",
-        color: "#00f0ff",
-      };
+      const failed = action.includes("Failed");
+      const color = failed ? "#ef4444" : "#00f0ff";
+      return (
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: failed ? "rgba(239,68,68,0.1)" : "rgba(0,240,255,0.1)" }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+          </svg>
+        </div>
+      );
     }
-    return {
-      background: riskLevel === "none"
-        ? "rgba(16,185,129,0.1)"
-        : riskLevel === "medium"
-        ? "rgba(245,158,11,0.1)"
-        : "rgba(239,68,68,0.1)",
-      color: riskLevel === "none"
-        ? "#10b981"
-        : riskLevel === "medium"
-        ? "#f59e0b"
-        : "#ef4444",
-    };
+    // Challenge passed — checkmark
+    if (action === "Challenge Passed" || action === "Agent Verified") {
+      return (
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "rgba(16,185,129,0.1)" }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20 6L9 17l-5-5"/>
+          </svg>
+        </div>
+      );
+    }
+    // Challenge failed — X
+    if (action === "Challenge Failed") {
+      return (
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "rgba(245,158,11,0.1)" }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 6L6 18M6 6l12 12"/>
+          </svg>
+        </div>
+      );
+    }
+    // Agent registered — user-plus
+    if (action === "Agent Registered") {
+      return (
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "rgba(168,85,247,0.1)" }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a855f7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+            <circle cx="8.5" cy="7" r="4"/>
+            <line x1="20" y1="8" x2="20" y2="14"/>
+            <line x1="23" y1="11" x2="17" y2="11"/>
+          </svg>
+        </div>
+      );
+    }
+    // Default — dot
+    return (
+      <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "rgba(100,100,100,0.1)" }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="4"/>
+        </svg>
+      </div>
+    );
   };
 
   const formatTime = (timestamp: string) => {
@@ -267,7 +291,7 @@ export function SecurityDashboard({ agents }: SecurityDashboardProps) {
       <div className="grid grid-cols-2 md:grid-cols-5 gap-px bg-[rgba(0,240,255,0.05)]">
         {[
           { label: "Total Agents", value: networkStats.totalAgents, color: "var(--accent-primary)" },
-          { label: "Verified", value: networkStats.verifiedAgents, color: "#10b981" },
+          { label: "Certified", value: networkStats.certifiedAgents, color: "#10b981" },
           { label: "On-Chain Rep", value: `${networkStats.avgReputation.toFixed(1)}%`, color: "#a855f7" },
           { label: "Challenges", value: networkStats.totalChallenges, color: "#3b82f6" },
           { label: "Pass Rate", value: networkStats.totalChallenges > 0 ? `${Math.round(networkStats.totalPassed / networkStats.totalChallenges * 100)}%` : "—", color: "#10b981" },
@@ -302,12 +326,7 @@ export function SecurityDashboard({ agents }: SecurityDashboardProps) {
                 className="activity-item flex items-center justify-between rounded-lg p-3"
               >
                 <div className="flex items-center gap-3">
-                  <div
-                    className="w-8 h-8 rounded-lg flex items-center justify-center text-sm"
-                    style={getIconStyle(entry.action, entry.riskLevel)}
-                  >
-                    {getActionIcon(entry.action)}
-                  </div>
+                  {getActionIcon(entry.action)}
                   <div>
                     <p className="text-sm font-medium text-[var(--text-primary)]">
                       {entry.action}
