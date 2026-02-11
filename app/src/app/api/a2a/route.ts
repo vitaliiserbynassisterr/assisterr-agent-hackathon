@@ -102,6 +102,41 @@ async function fetchAggregatedAudit() {
 }
 
 /**
+ * Fetch DeFi capabilities from all agents and merge into a single response.
+ */
+async function fetchAggregatedDefi() {
+  const results = await Promise.allSettled(
+    AGENT_SLUGS.map(async (s) => {
+      const res = await fetch(`${AGENT_API_URL}/${s}/defi/capabilities`, {
+        headers: { Accept: "application/json" },
+        signal: AbortSignal.timeout(10000),
+      });
+      if (!res.ok) throw new Error(`${s}: ${res.status}`);
+      return res.json();
+    })
+  );
+
+  const fulfilled = results
+    .filter(
+      (r): r is PromiseFulfilledResult<Record<string, unknown>> =>
+        r.status === "fulfilled"
+    )
+    .map((r) => r.value);
+
+  const totalOps = fulfilled.reduce((s, d) => {
+    const stats = d.stats as Record<string, number> | undefined;
+    return s + (stats?.total_operations || 0);
+  }, 0);
+
+  return {
+    agents: fulfilled,
+    total_agents_with_defi: fulfilled.filter((d) => d.initialized).length,
+    total_operations: totalOps,
+    powered_by: "AgentiPy (41 Solana protocols, 218+ actions)",
+  };
+}
+
+/**
  * Fetch autonomous stats from all agents and merge into a single response.
  */
 async function fetchAggregatedAutonomousStats() {
@@ -158,6 +193,11 @@ export async function GET(request: NextRequest) {
     certifications: "/certifications",
     audit: "/audit",
     "autonomous-stats": "/autonomous-stats",
+    "defi-capabilities": "/defi/capabilities",
+    "defi-balance": "/defi/balance",
+    "defi-tps": "/defi/tps",
+    "defi-trending": "/defi/trending",
+    "defi-stats": "/defi/stats",
   };
 
   if (!endpoint || !validEndpoints[endpoint]) {
@@ -187,6 +227,12 @@ export async function GET(request: NextRequest) {
     // For autonomous-stats without a specific slug, aggregate from all agents
     if (endpoint === "autonomous-stats" && !slug) {
       const aggregated = await fetchAggregatedAutonomousStats();
+      return NextResponse.json(aggregated);
+    }
+
+    // For defi-capabilities without a specific slug, aggregate from all agents
+    if (endpoint === "defi-capabilities" && !slug) {
+      const aggregated = await fetchAggregatedDefi();
       return NextResponse.json(aggregated);
     }
 

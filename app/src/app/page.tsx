@@ -15,6 +15,7 @@ import { SecurityDashboard } from "@/components/SecurityDashboard";
 import { A2ANetworkView } from "@/components/A2ANetworkView";
 import { CertificationView } from "@/components/CertificationView";
 import { AuditTrailView } from "@/components/AuditTrailView";
+import { DeFiIntelligenceView } from "@/components/DeFiIntelligenceView";
 
 export default function Home() {
   const { connection } = useConnection();
@@ -162,6 +163,9 @@ export default function Home() {
                   </span>
                   <span className="px-4 py-2 rounded-lg bg-[rgba(168,85,247,0.1)] border border-[rgba(168,85,247,0.3)] text-[#a855f7]">
                     NFT Identity
+                  </span>
+                  <span className="px-4 py-2 rounded-lg bg-[rgba(245,158,11,0.1)] border border-[rgba(245,158,11,0.3)] text-[#f59e0b]">
+                    AgentiPy DeFi
                   </span>
                 </div>
               </div>
@@ -327,6 +331,11 @@ export default function Home() {
         {/* Verifiable Audit Trail */}
         <div className="mb-10">
           <AuditTrailView />
+        </div>
+
+        {/* Live DeFi Intelligence - powered by AgentiPy */}
+        <div className="mb-10">
+          <DeFiIntelligenceView />
         </div>
 
         {/* Register Agent */}

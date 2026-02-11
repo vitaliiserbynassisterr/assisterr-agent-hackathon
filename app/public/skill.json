@@ -19,7 +19,9 @@
     "slm_evaluation",
     "reputation_tracking",
     "audit_trail",
-    "nft_identity"
+    "nft_identity",
+    "live_defi_intelligence",
+    "agentipy_integration"
   ],
 
   "api": {
@@ -261,11 +263,55 @@
     }
   },
 
+  "defi_toolkit": {
+    "powered_by": "AgentiPy",
+    "protocols": 41,
+    "actions": "218+",
+    "endpoints": {
+      "capabilities": {
+        "method": "GET",
+        "path": "/{slug}/defi/capabilities",
+        "description": "List available DeFi tools and their status"
+      },
+      "balance": {
+        "method": "GET",
+        "path": "/{slug}/defi/balance",
+        "description": "Get agent SOL/SPL balance via AgentiPy"
+      },
+      "tps": {
+        "method": "GET",
+        "path": "/{slug}/defi/tps",
+        "description": "Get current Solana network TPS"
+      },
+      "trending": {
+        "method": "GET",
+        "path": "/{slug}/defi/trending",
+        "description": "Get trending tokens from CoinGecko"
+      },
+      "price": {
+        "method": "GET",
+        "path": "/{slug}/defi/price/{token_id}",
+        "description": "Get token price data"
+      },
+      "rugcheck": {
+        "method": "GET",
+        "path": "/{slug}/defi/rugcheck/{token_mint}",
+        "description": "Run RugCheck safety analysis on a token"
+      },
+      "token_data": {
+        "method": "GET",
+        "path": "/{slug}/defi/token/{token_mint}",
+        "description": "Get token metadata and information"
+      }
+    }
+  },
+
   "integration": {
     "wallet_adapter": true,
     "anchor_version": "0.32.0",
     "supported_wallets": ["Phantom", "Solflare", "Backpack"],
     "python_sdk": "agent/solana_client/client.py",
+    "agentipy_sdk": "agentipy>=1.2.0",
     "docker_compose": "docker-compose.multi-agent.yml"
   },
 

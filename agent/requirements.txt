@@ -19,6 +19,10 @@ pydantic-settings>=2.1.0
 python-dotenv>=1.0.0
 click>=8.1.0
 
+# AgentiPy - Solana DeFi toolkit (41 protocols, 218+ actions)
+agentipy>=1.2.0
+base58>=2.1.1
+
 # Optional: Real LLM inference (uncomment for production)
 # llama-cpp-python>=0.2.0
 # openai>=1.10.0

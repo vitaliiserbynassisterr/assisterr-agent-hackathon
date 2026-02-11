@@ -36,13 +36,13 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from poi import ChallengeHandler, compute_model_hash, generate_demo_model_hash, generate_model_identifier_hash, SLMEvaluator, EvaluationDomain, LLMJudge, QuestionSelector, AuditBatcher, ActionType
+from poi import ChallengeHandler, compute_model_hash, generate_demo_model_hash, generate_model_identifier_hash, SLMEvaluator, EvaluationDomain, LLMJudge, QuestionSelector, AuditBatcher, ActionType, DeFiToolkit
 from solana_client import AgentRegistryClient
 
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-AGENT_VERSION = "2.0.0-multi"
+AGENT_VERSION = "3.0.0-agentipy"
 CHALLENGE_POLL_INTERVAL = 30
 SELF_EVAL_INTERVAL = 900
 CROSS_AGENT_CHALLENGE_INTERVAL = 300
@@ -161,6 +161,7 @@ class AgentState:
     http_client: Optional[httpx.AsyncClient] = None
     tasks: list = field(default_factory=list)
     audit_batcher: Optional[AuditBatcher] = None
+    defi_toolkit: Optional[DeFiToolkit] = None
     used_pda_pairs: set = field(default_factory=set)  # Track exhausted PDA slots
     _discovery_cache: list = field(default_factory=list)
     _discovery_cache_ts: float = 0.0
@@ -825,6 +826,22 @@ def create_agent_app(
             except Exception as e:
                 logger.warning(f"[{slug}] Audit batcher init failed: {e}")
 
+        # Initialize AgentiPy DeFi Toolkit (live Solana DeFi capabilities)
+        try:
+            state.defi_toolkit = DeFiToolkit(
+                wallet_path=wallet_path,
+                rpc_url=SOLANA_RPC_URL,
+                coingecko_api_key=os.getenv("COINGECKO_API_KEY", ""),
+            )
+            defi_ok = await state.defi_toolkit.initialize()
+            if defi_ok:
+                logger.info(f"[{slug}] AgentiPy DeFi toolkit initialized OK")
+            else:
+                logger.warning(f"[{slug}] AgentiPy DeFi toolkit failed: {state.defi_toolkit._init_error}")
+        except Exception as e:
+            logger.warning(f"[{slug}] AgentiPy DeFi toolkit init error: {e}")
+            state.defi_toolkit = None
+
         # Background tasks
         state.tasks.append(asyncio.create_task(_poll_challenges(state)))
         state.tasks.append(asyncio.create_task(_self_evaluation(state)))
@@ -908,6 +925,12 @@ def create_agent_app(
                 "challenges_passed": state.agent_info.get("challenges_passed", 0) if state.agent_info else 0,
                 "challenges_failed": state.agent_info.get("challenges_failed", 0) if state.agent_info else 0,
             },
+            "defi_toolkit": {
+                "available": state.defi_toolkit.available if state.defi_toolkit else False,
+                "powered_by": "AgentiPy (41 Solana protocols, 218+ actions)",
+                "capabilities": state.defi_toolkit.get_capabilities() if state.defi_toolkit else {},
+                "stats": state.defi_toolkit.get_stats() if state.defi_toolkit else {},
+            },
             "a2a": {
                 "configured_peers": len(state.peers),
                 "online_peers": sum(1 for p in state.peer_registry.values() if p.get("status") == "online"),
@@ -915,7 +938,10 @@ def create_agent_app(
                 "endpoints": ["/status", "/health", "/activity", "/evaluations",
                               "/challenge", "/evaluate/{domain}", "/peers",
                               "/a2a/interactions", "/a2a/info", "/audit",
-                              "/autonomous-stats", "/certify", "/certifications"],
+                              "/autonomous-stats", "/certify", "/certifications",
+                              "/defi/capabilities", "/defi/balance", "/defi/tps",
+                              "/defi/trending", "/defi/price/{token_id}",
+                              "/defi/rugcheck/{token_mint}", "/defi/token/{token_mint}"],
             },
         }
 
@@ -1315,6 +1341,95 @@ def create_agent_app(
                 "cryptographic_hashing": "SHA256",
                 "on_chain_verification": "Solana devnet",
             },
+            "defi_toolkit": {
+                "powered_by": "AgentiPy",
+                "available": state.defi_toolkit.available if state.defi_toolkit else False,
+                "protocols_accessible": 41,
+                "actions_available": "218+",
+                "stats": state.defi_toolkit.get_stats() if state.defi_toolkit else {},
+            },
+        }
+
+    # -- DeFi endpoints (powered by AgentiPy) --
+
+    @sub_app.get("/defi/capabilities")
+    async def defi_capabilities():
+        """List available DeFi tools and their status."""
+        if not state.defi_toolkit:
+            return {"available": False, "error": "DeFi toolkit not initialized"}
+        return {
+            "agent": name,
+            "personality": personality,
+            **state.defi_toolkit.get_capabilities(),
+            "stats": state.defi_toolkit.get_stats(),
+        }
+
+    @sub_app.get("/defi/balance")
+    async def defi_balance(token: Optional[str] = None):
+        """Get agent's SOL or SPL token balance via AgentiPy."""
+        if not state.defi_toolkit or not state.defi_toolkit.available:
+            raise HTTPException(status_code=503, detail="DeFi toolkit not available")
+        result = await state.defi_toolkit.get_balance(token)
+        if state.audit_batcher:
+            state.audit_batcher.log(ActionType.EVALUATION_COMPLETED, {
+                "tool": "agentipy_balance", "success": result.success,
+            })
+        return {"agent": name, **result.__dict__}
+
+    @sub_app.get("/defi/tps")
+    async def defi_tps():
+        """Get current Solana network TPS."""
+        if not state.defi_toolkit or not state.defi_toolkit.available:
+            raise HTTPException(status_code=503, detail="DeFi toolkit not available")
+        result = await state.defi_toolkit.get_tps()
+        return {"agent": name, **result.__dict__}
+
+    @sub_app.get("/defi/trending")
+    async def defi_trending():
+        """Get trending tokens from CoinGecko via AgentiPy."""
+        if not state.defi_toolkit or not state.defi_toolkit.available:
+            raise HTTPException(status_code=503, detail="DeFi toolkit not available")
+        result = await state.defi_toolkit.get_trending_tokens()
+        return {"agent": name, **result.__dict__}
+
+    @sub_app.get("/defi/price/{token_id}")
+    async def defi_price(token_id: str):
+        """Get token price data via CoinGecko."""
+        if not state.defi_toolkit or not state.defi_toolkit.available:
+            raise HTTPException(status_code=503, detail="DeFi toolkit not available")
+        result = await state.defi_toolkit.get_token_price(token_id)
+        return {"agent": name, **result.__dict__}
+
+    @sub_app.get("/defi/rugcheck/{token_mint}")
+    async def defi_rugcheck(token_mint: str):
+        """Run RugCheck safety analysis on a token via AgentiPy."""
+        if not state.defi_toolkit or not state.defi_toolkit.available:
+            raise HTTPException(status_code=503, detail="DeFi toolkit not available")
+        result = await state.defi_toolkit.rugcheck(token_mint)
+        if state.audit_batcher:
+            state.audit_batcher.log(ActionType.EVALUATION_COMPLETED, {
+                "tool": "agentipy_rugcheck", "token": token_mint[:20],
+                "success": result.success,
+            })
+        return {"agent": name, **result.__dict__}
+
+    @sub_app.get("/defi/token/{token_mint}")
+    async def defi_token_data(token_mint: str):
+        """Get token metadata and information via AgentiPy."""
+        if not state.defi_toolkit or not state.defi_toolkit.available:
+            raise HTTPException(status_code=503, detail="DeFi toolkit not available")
+        result = await state.defi_toolkit.get_token_data(token_mint)
+        return {"agent": name, **result.__dict__}
+
+    @sub_app.get("/defi/stats")
+    async def defi_stats():
+        """Get DeFi toolkit usage statistics."""
+        if not state.defi_toolkit:
+            return {"available": False}
+        return {
+            "agent": name,
+            "stats": state.defi_toolkit.get_stats(),
+            "recent_operations": state.defi_toolkit.operation_history[-10:],
         }
 
     return sub_app, state
@@ -1328,7 +1443,7 @@ AGENT_CONFIGS = [
         "name": "PoI-Alpha",
         "slug": "alpha",
         "personality": "defi",
-        "capabilities": "defi-analysis,yield-farming,amm-math,cross-agent-discovery",
+        "capabilities": "defi-analysis,yield-farming,amm-math,cross-agent-discovery,agentipy-defi",
         "model_provider": "anthropic",
         "model_name": "claude-3-haiku-20240307",
     },
@@ -1336,7 +1451,7 @@ AGENT_CONFIGS = [
         "name": "PoI-Beta",
         "slug": "beta",
         "personality": "security",
-        "capabilities": "security-audit,vulnerability-scan,threat-detection,cross-agent-discovery",
+        "capabilities": "security-audit,vulnerability-scan,threat-detection,cross-agent-discovery,agentipy-defi",
         "model_provider": "anthropic",
         "model_name": "claude-haiku-4-5-20251001",
     },
@@ -1344,7 +1459,7 @@ AGENT_CONFIGS = [
         "name": "PoI-Gamma",
         "slug": "gamma",
         "personality": "solana",
-        "capabilities": "solana-dev,pda-analysis,anchor-expert,cross-agent-discovery",
+        "capabilities": "solana-dev,pda-analysis,anchor-expert,cross-agent-discovery,agentipy-defi",
         "model_provider": "anthropic",
         "model_name": "claude-sonnet-4-5-20250929",
     },

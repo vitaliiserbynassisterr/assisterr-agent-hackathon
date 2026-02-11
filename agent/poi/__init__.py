@@ -12,6 +12,7 @@ from .merkle_audit import (
     compute_merkle_proof,
     verify_merkle_proof,
 )
+from .defi_tools import DeFiToolkit, DeFiToolResult
 
 __all__ = [
     "compute_model_hash",
@@ -33,4 +34,6 @@ __all__ = [
     "compute_merkle_root",
     "compute_merkle_proof",
     "verify_merkle_proof",
+    "DeFiToolkit",
+    "DeFiToolResult",
 ]
