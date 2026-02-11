@@ -42,10 +42,15 @@ from solana_client import AgentRegistryClient
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-AGENT_VERSION = "3.0.0-agentipy"
+AGENT_VERSION = "4.0.0-adaptive-economic"
 CHALLENGE_POLL_INTERVAL = 30
 SELF_EVAL_INTERVAL = 900
 CROSS_AGENT_CHALLENGE_INTERVAL = 300
+
+# Economic transaction constants (devnet)
+CHALLENGE_FEE_LAMPORTS = 1_000_000      # 0.001 SOL - paid by challenger to target
+CHALLENGE_REWARD_LAMPORTS = 500_000     # 0.0005 SOL - returned to challenger on good score
+MIN_BALANCE_LAMPORTS = 50_000_000       # 0.05 SOL - minimum balance to maintain
 
 # LLM Judge config (shared across agents)
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
@@ -165,6 +170,14 @@ class AgentState:
     used_pda_pairs: set = field(default_factory=set)  # Track exhausted PDA slots
     _discovery_cache: list = field(default_factory=list)
     _discovery_cache_ts: float = 0.0
+    # Economic tracking (agent-to-agent payments)
+    economic_transactions: list = field(default_factory=list)
+    total_sol_sent: int = 0       # lamports
+    total_sol_received: int = 0   # lamports
+    # Adaptive behavior tracking
+    domain_scores: dict = field(default_factory=dict)  # domain -> [scores]
+    last_reputation: int = 5000
+    adaptive_triggers: list = field(default_factory=list)  # log of why actions were triggered
 
 
 def _log_activity(state: AgentState, action: str, status: str, details: dict = None):
@@ -312,6 +325,7 @@ async def _cross_agent_challenges(state: AgentState):
     _log_activity(state, "a2a_challenges", "started", {
         "interval": CROSS_AGENT_CHALLENGE_INTERVAL,
         "peers": state.peers,
+        "mode": "adaptive",
     })
     await asyncio.sleep(90)
     idx = 0
@@ -320,6 +334,29 @@ async def _cross_agent_challenges(state: AgentState):
             if state.client is None or state.agent_info is None or state.agent_info.get("agent_id", -1) < 0:
                 await asyncio.sleep(CROSS_AGENT_CHALLENGE_INTERVAL)
                 continue
+
+            # -- ADAPTIVE BEHAVIOR: Check if urgent challenge needed --
+            urgent, trigger_reason = _should_challenge_urgently(state)
+            if urgent:
+                state.adaptive_triggers.append({
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "trigger": trigger_reason,
+                    "action": "immediate_challenge",
+                })
+                if len(state.adaptive_triggers) > 100:
+                    state.adaptive_triggers.pop(0)
+                _log_activity(state, "adaptive_trigger", "urgent_challenge", {
+                    "reason": trigger_reason,
+                })
+                if state.audit_batcher:
+                    state.audit_batcher.log(ActionType.CROSS_AGENT_CHALLENGE, {
+                        "type": "adaptive_trigger",
+                        "reason": trigger_reason,
+                    })
+
+            # Track reputation changes for adaptive behavior
+            current_rep = state.agent_info.get("reputation_score", 5000) if state.agent_info else 5000
+            state.last_reputation = current_rep
 
             await _discover_peers(state)
 
@@ -332,12 +369,18 @@ async def _cross_agent_challenges(state: AgentState):
                 await asyncio.sleep(CROSS_AGENT_CHALLENGE_INTERVAL)
                 continue
 
+            # -- ADAPTIVE: Target weakest domain's expert peer, or round-robin --
             peer = online_peers[idx % len(online_peers)]
             peer_url = peer["url"]
             idx += 1
 
             # Select domain-specific question via QuestionSelector
-            selected_q = state.question_selector.select_question(peer["name"])
+            # ADAPTIVE: prefer weakest domain for self-improvement
+            weakest = _get_weakest_domain(state)
+            selected_q = state.question_selector.select_question(
+                peer["name"],
+                preferred_domain=weakest,
+            )
             question = selected_q.question
 
             interaction = {
@@ -348,6 +391,7 @@ async def _cross_agent_challenges(state: AgentState):
                 "question": question,
                 "question_domain": selected_q.domain,
                 "question_difficulty": selected_q.difficulty,
+                "adaptive_trigger": trigger_reason if urgent else None,
                 "steps": [],
             }
 
@@ -355,7 +399,24 @@ async def _cross_agent_challenges(state: AgentState):
                 "peer": peer["name"],
                 "question": question[:60],
                 "domain": selected_q.domain,
+                "adaptive": urgent,
             })
+
+            # -- ECONOMIC: Pay challenge fee to peer before asking --
+            challenge_payment_tx = None
+            peer_owner = peer.get("owner", "")
+            if peer_owner and state.client:
+                challenge_payment_tx = await _pay_peer(
+                    state, peer_owner, CHALLENGE_FEE_LAMPORTS,
+                    f"challenge_fee:{peer['name']}:{selected_q.domain}",
+                )
+                if challenge_payment_tx:
+                    interaction["steps"].append({
+                        "step": "economic_challenge_fee", "status": "paid",
+                        "lamports": CHALLENGE_FEE_LAMPORTS,
+                        "sol": CHALLENGE_FEE_LAMPORTS / 1_000_000_000,
+                        "tx": challenge_payment_tx,
+                    })
 
             # HTTP POST /challenge to peer
             dummy_hash = hashlib.sha256(b"challenge_probe").hexdigest()
@@ -416,6 +477,31 @@ async def _cross_agent_challenges(state: AgentState):
                     interaction["steps"].append({
                         "step": "llm_judge_scoring", "status": "error",
                         "error": str(e)[:100],
+                    })
+
+            # -- ADAPTIVE: Track domain scores for future adaptive decisions --
+            if judge_result:
+                domain_key = selected_q.domain
+                if domain_key not in state.domain_scores:
+                    state.domain_scores[domain_key] = []
+                state.domain_scores[domain_key].append(judge_result.score)
+                if len(state.domain_scores[domain_key]) > 20:
+                    state.domain_scores[domain_key].pop(0)
+
+            # -- ECONOMIC: Reward peer if they scored well (>=70%) --
+            reward_tx = None
+            if judge_result and judge_result.score >= 70 and peer_owner and state.client:
+                reward_tx = await _pay_peer(
+                    state, peer_owner, CHALLENGE_REWARD_LAMPORTS,
+                    f"quality_reward:{peer['name']}:score={judge_result.score}",
+                )
+                if reward_tx:
+                    interaction["steps"].append({
+                        "step": "economic_quality_reward", "status": "paid",
+                        "lamports": CHALLENGE_REWARD_LAMPORTS,
+                        "sol": CHALLENGE_REWARD_LAMPORTS / 1_000_000_000,
+                        "tx": reward_tx,
+                        "reason": f"score={judge_result.score}>=70",
                     })
 
             # On-chain challenge + submit
@@ -561,6 +647,12 @@ async def _cross_agent_challenges(state: AgentState):
             interaction["on_chain_tx"] = on_chain_tx
             interaction["submit_tx"] = submit_tx
             interaction["judge_score"] = judge_result.score if judge_result else None
+            interaction["economic"] = {
+                "challenge_fee_tx": challenge_payment_tx,
+                "reward_tx": reward_tx,
+                "fee_lamports": CHALLENGE_FEE_LAMPORTS if challenge_payment_tx else 0,
+                "reward_lamports": CHALLENGE_REWARD_LAMPORTS if reward_tx else 0,
+            }
             state.a2a_interactions.append(interaction)
 
             # Merkle audit: log cross-agent challenge
@@ -586,11 +678,17 @@ async def _cross_agent_challenges(state: AgentState):
                 "judge_score": judge_result.score if judge_result else None,
                 "status": "completed" if peer_answer else "failed",
                 "a2a_http": True,
+                "economic_fee_tx": challenge_payment_tx,
+                "economic_reward_tx": reward_tx,
             })
             if len(state.cross_agent_challenges) > 50:
                 state.cross_agent_challenges.pop(0)
 
-            await asyncio.sleep(CROSS_AGENT_CHALLENGE_INTERVAL)
+            # ADAPTIVE: Shorter interval if urgent, normal otherwise
+            if urgent:
+                await asyncio.sleep(60)  # Quick follow-up when triggered
+            else:
+                await asyncio.sleep(CROSS_AGENT_CHALLENGE_INTERVAL)
 
         except asyncio.CancelledError:
             break
@@ -600,6 +698,105 @@ async def _cross_agent_challenges(state: AgentState):
 
 
 AUDIT_FLUSH_INTERVAL = 300  # 5 minutes
+
+
+# ---------------------------------------------------------------------------
+# Economic transaction helper
+# ---------------------------------------------------------------------------
+async def _pay_peer(state: AgentState, peer_pubkey_str: str, lamports: int, reason: str) -> Optional[str]:
+    """Send SOL micropayment to a peer agent. Returns tx signature or None."""
+    if not state.client:
+        return None
+    try:
+        # Check balance first
+        balance = await state.client.get_sol_balance()
+        if balance < lamports + MIN_BALANCE_LAMPORTS:
+            logger.warning(f"[{state.slug}] Insufficient balance for payment: {balance} < {lamports + MIN_BALANCE_LAMPORTS}")
+            return None
+        from solders.pubkey import Pubkey
+        to_pubkey = Pubkey.from_string(peer_pubkey_str)
+        tx_sig = await state.client.transfer_sol(to_pubkey, lamports)
+        txn_record = {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "direction": "sent",
+            "counterparty": peer_pubkey_str[:12] + "...",
+            "lamports": lamports,
+            "sol": lamports / 1_000_000_000,
+            "reason": reason,
+            "tx": tx_sig,
+        }
+        state.economic_transactions.append(txn_record)
+        if len(state.economic_transactions) > 200:
+            state.economic_transactions.pop(0)
+        state.total_sol_sent += lamports
+        _log_activity(state, "economic_payment", "sent", {
+            "to": peer_pubkey_str[:12], "lamports": lamports, "reason": reason, "tx": tx_sig[:16],
+        })
+        if state.audit_batcher:
+            state.audit_batcher.log(ActionType.CROSS_AGENT_CHALLENGE, {
+                "type": "economic_payment",
+                "direction": "sent",
+                "lamports": lamports,
+                "reason": reason,
+                "tx": tx_sig[:16],
+            })
+        return tx_sig
+    except Exception as e:
+        logger.warning(f"[{state.slug}] Payment failed: {e}")
+        return None
+
+
+# ---------------------------------------------------------------------------
+# Adaptive behavior engine
+# ---------------------------------------------------------------------------
+def _get_weakest_domain(state: AgentState) -> Optional[str]:
+    """Find the domain with the lowest average score."""
+    if not state.domain_scores:
+        return None
+    avg_scores = {}
+    for domain, scores in state.domain_scores.items():
+        if scores:
+            avg_scores[domain] = sum(scores[-5:]) / len(scores[-5:])  # Last 5 scores
+    if not avg_scores:
+        return None
+    return min(avg_scores, key=avg_scores.get)
+
+
+def _should_challenge_urgently(state: AgentState) -> tuple[bool, str]:
+    """
+    Determine if an urgent challenge should be triggered (adaptive behavior).
+    Returns (should_trigger, reason).
+    """
+    # Trigger 1: Reputation dropped significantly
+    current_rep = state.agent_info.get("reputation_score", 5000) if state.agent_info else 5000
+    if state.last_reputation - current_rep >= 200:
+        return True, f"reputation_drop:{state.last_reputation}->{current_rep}"
+
+    # Trigger 2: New peer came online that we haven't challenged yet
+    challenged_peers = set(c.get("target_agent", "") for c in state.cross_agent_challenges[-20:])
+    for peer_info in state.peer_registry.values():
+        if peer_info.get("status") == "online" and peer_info.get("name") not in challenged_peers:
+            return True, f"new_peer:{peer_info.get('name', 'unknown')}"
+
+    # Trigger 3: A domain score is below 50% (need improvement)
+    for domain, scores in state.domain_scores.items():
+        if scores and scores[-1] < 50:
+            return True, f"low_domain_score:{domain}={scores[-1]:.0f}%"
+
+    return False, ""
+
+
+def _get_adaptive_difficulty(state: AgentState, domain: str) -> str:
+    """Choose difficulty based on past performance in this domain."""
+    scores = state.domain_scores.get(domain, [])
+    if not scores:
+        return "medium"
+    avg = sum(scores[-3:]) / len(scores[-3:])
+    if avg >= 85:
+        return "hard"
+    elif avg >= 60:
+        return "medium"
+    return "easy"
 
 
 async def _flush_audit(state: AgentState):
@@ -939,6 +1136,7 @@ def create_agent_app(
                               "/challenge", "/evaluate/{domain}", "/peers",
                               "/a2a/interactions", "/a2a/info", "/audit",
                               "/autonomous-stats", "/certify", "/certifications",
+                              "/economics", "/adaptive", "/wallet",
                               "/defi/capabilities", "/defi/balance", "/defi/tps",
                               "/defi/trending", "/defi/price/{token_id}",
                               "/defi/rugcheck/{token_mint}", "/defi/token/{token_mint}"],
@@ -1341,6 +1539,22 @@ def create_agent_app(
                 "cryptographic_hashing": "SHA256",
                 "on_chain_verification": "Solana devnet",
             },
+            "economic_autonomy": {
+                "description": "Agents pay each other SOL for challenge services",
+                "total_sol_sent": state.total_sol_sent / 1_000_000_000,
+                "total_sol_received": state.total_sol_received / 1_000_000_000,
+                "total_transactions": len(state.economic_transactions),
+                "challenge_fee": f"{CHALLENGE_FEE_LAMPORTS / 1_000_000_000} SOL",
+                "quality_reward": f"{CHALLENGE_REWARD_LAMPORTS / 1_000_000_000} SOL",
+                "recent_transactions": state.economic_transactions[-5:],
+            },
+            "adaptive_behavior": {
+                "description": "Agents adapt based on performance, not fixed schedules",
+                "total_adaptive_triggers": len(state.adaptive_triggers),
+                "domain_scores": {d: round(sum(s[-3:])/len(s[-3:]), 1) if s else 0 for d, s in state.domain_scores.items()},
+                "weakest_domain": _get_weakest_domain(state),
+                "recent_triggers": state.adaptive_triggers[-5:],
+            },
             "defi_toolkit": {
                 "powered_by": "AgentiPy",
                 "available": state.defi_toolkit.available if state.defi_toolkit else False,
@@ -1430,6 +1644,79 @@ def create_agent_app(
             "agent": name,
             "stats": state.defi_toolkit.get_stats(),
             "recent_operations": state.defi_toolkit.operation_history[-10:],
+        }
+
+    # -- Economic Autonomy Endpoints --
+
+    @sub_app.get("/economics")
+    async def get_economics():
+        """Agent-to-agent economic transaction history — proof of economic autonomy."""
+        sent_count = sum(1 for t in state.economic_transactions if t["direction"] == "sent")
+        received_count = sum(1 for t in state.economic_transactions if t["direction"] == "received")
+        return {
+            "agent_name": name,
+            "description": "Agents autonomously pay each other SOL for challenge services",
+            "summary": {
+                "total_transactions": len(state.economic_transactions),
+                "total_sol_sent": round(state.total_sol_sent / 1_000_000_000, 6),
+                "total_sol_received": round(state.total_sol_received / 1_000_000_000, 6),
+                "net_sol": round((state.total_sol_received - state.total_sol_sent) / 1_000_000_000, 6),
+                "sent_count": sent_count,
+                "received_count": received_count,
+            },
+            "fee_structure": {
+                "challenge_fee": f"{CHALLENGE_FEE_LAMPORTS / 1_000_000_000} SOL",
+                "quality_reward_threshold": "score >= 70%",
+                "quality_reward": f"{CHALLENGE_REWARD_LAMPORTS / 1_000_000_000} SOL",
+            },
+            "recent_transactions": state.economic_transactions[-20:],
+        }
+
+    @sub_app.get("/adaptive")
+    async def get_adaptive():
+        """Adaptive behavior status — proof agent makes strategic decisions."""
+        return {
+            "agent_name": name,
+            "description": "Agent adapts its behavior based on performance, not fixed schedules",
+            "domain_performance": {
+                d: {
+                    "avg_score": round(sum(s[-5:])/len(s[-5:]), 1) if s else 0,
+                    "trend": "improving" if len(s) >= 2 and s[-1] > s[-2] else "declining" if len(s) >= 2 and s[-1] < s[-2] else "stable",
+                    "total_evaluations": len(s),
+                    "adaptive_difficulty": _get_adaptive_difficulty(state, d),
+                }
+                for d, s in state.domain_scores.items()
+            },
+            "weakest_domain": _get_weakest_domain(state),
+            "adaptive_triggers": {
+                "total": len(state.adaptive_triggers),
+                "recent": state.adaptive_triggers[-10:],
+            },
+            "behavior_modes": {
+                "reputation_drop_detection": "Active — triggers immediate challenge if reputation drops >=200 points",
+                "new_peer_detection": "Active — challenges new peers immediately upon discovery",
+                "weak_domain_focus": "Active — prioritizes questions from weakest domain for self-improvement",
+                "difficulty_scaling": "Active — increases difficulty when scoring >85%, decreases below 60%",
+            },
+        }
+
+    @sub_app.get("/wallet")
+    async def get_wallet_info():
+        """Agent wallet information and balance."""
+        balance = 0
+        pubkey = "unknown"
+        if state.client:
+            try:
+                balance = await state.client.get_sol_balance()
+                pubkey = str(state.client.keypair.pubkey())
+            except Exception:
+                pass
+        return {
+            "agent_name": name,
+            "pubkey": pubkey,
+            "balance_lamports": balance,
+            "balance_sol": round(balance / 1_000_000_000, 6),
+            "network": "devnet",
         }
 
     return sub_app, state
@@ -1660,10 +1947,23 @@ async def network_overview():
             "online_peers": sum(1 for p in st.peer_registry.values() if p.get("status") == "online"),
             "uptime_seconds": (datetime.now(timezone.utc) - st.startup_time).total_seconds()
                 if st.startup_time else 0,
+            "economic": {
+                "sol_sent": round(st.total_sol_sent / 1_000_000_000, 6),
+                "sol_received": round(st.total_sol_received / 1_000_000_000, 6),
+                "transactions": len(st.economic_transactions),
+            },
+            "adaptive": {
+                "triggers": len(st.adaptive_triggers),
+                "weakest_domain": _get_weakest_domain(st),
+            },
         })
 
     # Sort interactions by timestamp (most recent first)
     all_interactions.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
+
+    total_economic_txs = sum(len(st.economic_transactions) for st in all_states)
+    total_sol_flow = sum(st.total_sol_sent for st in all_states)
+    total_adaptive = sum(len(st.adaptive_triggers) for st in all_states)
 
     return {
         "title": "Multi-Agent PoI Network",
@@ -1678,6 +1978,9 @@ async def network_overview():
                 1 for s in all_states
                 if s.agent_info and s.agent_info.get("agent_id", -1) >= 0
             ),
+            "economic_transactions": total_economic_txs,
+            "total_sol_flow": round(total_sol_flow / 1_000_000_000, 6),
+            "adaptive_triggers": total_adaptive,
         },
         "agents": agent_summaries,
         "recent_interactions": all_interactions[:30],

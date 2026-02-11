@@ -1,30 +1,30 @@
 # Agent Proof-of-Intelligence Demo
 # Python 3.11+ required
 
-# Solana integration
-solana>=0.34.0
-solders>=0.21.0
-anchorpy>=0.20.0
-
-# Web server for challenge API (A2A communication)
+# Core web framework + server
 fastapi>=0.109.0
 uvicorn[standard]>=0.27.0
-httpx>=0.26.0
-
-# Data validation
-pydantic>=2.0
+pydantic>=2.5.0
 pydantic-settings>=2.1.0
 
-# Utilities
-python-dotenv>=1.0.0
+# Solana SDK
+solana>=0.34.0
+solders>=0.21.0
+anchorpy>=0.20.1
+base58>=2.1.0
+
+# HTTP client for A2A communication
+httpx>=0.25.0
+
+# LLM providers (for judge scoring)
+anthropic>=0.40.0
+
+# CLI
 click>=8.1.0
 
-# AgentiPy - Solana DeFi toolkit (41 protocols, 218+ actions)
-# Pin numpy first to prevent pip backtracking to numpy==1.22.4 (no py3.11 wheel)
-numpy>=1.24.0
-agentipy>=2.1.0
-base58>=2.1.1
+# Environment
+python-dotenv>=1.0.0
 
-# Optional: Real LLM inference (uncomment for production)
-# llama-cpp-python>=0.2.0
-# openai>=1.10.0
+# AgentiPy - install without deps to avoid pip backtracking hell
+# agentipy's 100+ transitive deps cause pip to backtrack for 10+ minutes
+# We install the deps we actually use above, then agentipy --no-deps

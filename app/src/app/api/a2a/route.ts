@@ -102,6 +102,115 @@ async function fetchAggregatedAudit() {
 }
 
 /**
+ * Fetch economic data from all agents and merge into a single response.
+ */
+async function fetchAggregatedEconomics() {
+  const results = await Promise.allSettled(
+    AGENT_SLUGS.map(async (s) => {
+      const res = await fetch(`${AGENT_API_URL}/${s}/economics`, {
+        headers: { Accept: "application/json" },
+        signal: AbortSignal.timeout(10000),
+      });
+      if (!res.ok) throw new Error(`${s}: ${res.status}`);
+      return res.json();
+    })
+  );
+
+  const fulfilled = results
+    .filter(
+      (r): r is PromiseFulfilledResult<Record<string, unknown>> =>
+        r.status === "fulfilled"
+    )
+    .map((r) => r.value);
+
+  const summaries = fulfilled.map(
+    (d) => d.summary as Record<string, number> | undefined
+  );
+
+  return {
+    agents: fulfilled,
+    network_totals: {
+      total_transactions: summaries.reduce(
+        (s, d) => s + (d?.total_transactions || 0),
+        0
+      ),
+      total_sol_flow: summaries.reduce(
+        (s, d) => s + (d?.total_sol_sent || 0),
+        0
+      ),
+      net_sol: summaries.reduce((s, d) => s + (d?.net_sol || 0), 0),
+    },
+  };
+}
+
+/**
+ * Fetch adaptive behavior data from all agents and merge into a single response.
+ */
+async function fetchAggregatedAdaptive() {
+  const results = await Promise.allSettled(
+    AGENT_SLUGS.map(async (s) => {
+      const res = await fetch(`${AGENT_API_URL}/${s}/adaptive`, {
+        headers: { Accept: "application/json" },
+        signal: AbortSignal.timeout(10000),
+      });
+      if (!res.ok) throw new Error(`${s}: ${res.status}`);
+      return res.json();
+    })
+  );
+
+  const fulfilled = results
+    .filter(
+      (r): r is PromiseFulfilledResult<Record<string, unknown>> =>
+        r.status === "fulfilled"
+    )
+    .map((r) => r.value);
+
+  const totalTriggers = fulfilled.reduce((s, d) => {
+    const t = d.adaptive_triggers as Record<string, unknown> | undefined;
+    return s + ((t?.total as number) || 0);
+  }, 0);
+
+  return {
+    agents: fulfilled,
+    network_totals: {
+      total_adaptive_triggers: totalTriggers,
+      agents_adapting: fulfilled.length,
+    },
+  };
+}
+
+/**
+ * Fetch wallet info from all agents and merge into a single response.
+ */
+async function fetchAggregatedWallets() {
+  const results = await Promise.allSettled(
+    AGENT_SLUGS.map(async (s) => {
+      const res = await fetch(`${AGENT_API_URL}/${s}/wallet`, {
+        headers: { Accept: "application/json" },
+        signal: AbortSignal.timeout(10000),
+      });
+      if (!res.ok) throw new Error(`${s}: ${res.status}`);
+      return res.json();
+    })
+  );
+
+  const fulfilled = results
+    .filter(
+      (r): r is PromiseFulfilledResult<Record<string, unknown>> =>
+        r.status === "fulfilled"
+    )
+    .map((r) => r.value);
+
+  return {
+    agents: fulfilled,
+    total_balance_sol: fulfilled.reduce(
+      (s, d) => s + ((d.balance_sol as number) || 0),
+      0
+    ),
+  };
+}
+
+/**
  * Fetch DeFi capabilities from all agents and merge into a single response.
  */
 async function fetchAggregatedDefi() {
@@ -198,6 +307,9 @@ export async function GET(request: NextRequest) {
     "defi-tps": "/defi/tps",
     "defi-trending": "/defi/trending",
     "defi-stats": "/defi/stats",
+    economics: "/economics",
+    adaptive: "/adaptive",
+    wallet: "/wallet",
   };
 
   if (!endpoint || !validEndpoints[endpoint]) {
@@ -227,6 +339,24 @@ export async function GET(request: NextRequest) {
     // For autonomous-stats without a specific slug, aggregate from all agents
     if (endpoint === "autonomous-stats" && !slug) {
       const aggregated = await fetchAggregatedAutonomousStats();
+      return NextResponse.json(aggregated);
+    }
+
+    // For economics without a specific slug, aggregate from all agents
+    if (endpoint === "economics" && !slug) {
+      const aggregated = await fetchAggregatedEconomics();
+      return NextResponse.json(aggregated);
+    }
+
+    // For adaptive without a specific slug, aggregate from all agents
+    if (endpoint === "adaptive" && !slug) {
+      const aggregated = await fetchAggregatedAdaptive();
+      return NextResponse.json(aggregated);
+    }
+
+    // For wallet without a specific slug, aggregate from all agents
+    if (endpoint === "wallet" && !slug) {
+      const aggregated = await fetchAggregatedWallets();
       return NextResponse.json(aggregated);
     }
 

@@ -20,7 +20,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-import base58
+try:
+    import base58
+except ImportError:
+    base58 = None  # type: ignore[assignment]
 
 logger = logging.getLogger(__name__)
 

@@ -213,10 +213,11 @@ class QuestionSelector:
         # Track questions asked per peer to avoid repeats
         self._peer_history: Dict[str, Set[str]] = {}  # peer_name -> set of question IDs
 
-    def select_question(self, peer_name: str) -> ChallengeQuestion:
+    def select_question(self, peer_name: str, preferred_domain: str = None) -> ChallengeQuestion:
         """
         Select a question for a specific peer, weighted by personality.
         Avoids repeating questions to the same peer.
+        If preferred_domain is set (adaptive behavior), boost its weight 3x.
         """
         asked = self._peer_history.get(peer_name, set())
 
@@ -229,10 +230,13 @@ class QuestionSelector:
             self._peer_history[peer_name] = set()
             candidates = list(ALL_QUESTIONS)
 
-        # Weight candidates by domain
+        # Weight candidates by domain (with adaptive boost)
         weighted: List[tuple] = []  # (question, weight)
         for q in candidates:
             w = self._weights.get(q.domain, 0.1)
+            # Adaptive: boost preferred domain 3x for self-improvement
+            if preferred_domain and q.domain == preferred_domain:
+                w *= 3.0
             weighted.append((q, w))
 
         # Weighted random selection

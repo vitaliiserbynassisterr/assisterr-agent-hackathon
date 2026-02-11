@@ -71,6 +71,36 @@ class AgentRegistryClient:
             await self.client.close()
             logger.info("Disconnected from Solana")
 
+    async def transfer_sol(self, to_pubkey: Pubkey, lamports: int) -> str:
+        """Transfer SOL to another wallet. Returns tx signature."""
+        from solders.transaction import Transaction
+        from solders.system_program import transfer, TransferParams
+        from solders.message import Message
+        from solana.rpc.types import TxOpts
+        from solana.rpc.commitment import Confirmed
+
+        ix = transfer(TransferParams(
+            from_pubkey=self.keypair.pubkey(),
+            to_pubkey=to_pubkey,
+            lamports=lamports,
+        ))
+        recent = await self.client.get_latest_blockhash()
+        blockhash = recent.value.blockhash
+        msg = Message.new_with_blockhash([ix], self.keypair.pubkey(), blockhash)
+        tx = Transaction.new_unsigned(msg)
+        tx.sign([self.keypair], blockhash)
+        resp = await self.client.send_transaction(
+            tx, opts=TxOpts(skip_preflight=True, preflight_commitment=Confirmed),
+        )
+        sig = str(resp.value)
+        logger.info(f"Transfer {lamports} lamports to {to_pubkey}: {sig}")
+        return sig
+
+    async def get_sol_balance(self) -> int:
+        """Get SOL balance in lamports."""
+        resp = await self.client.get_balance(self.keypair.pubkey())
+        return resp.value
+
     def _get_registry_pda(self) -> tuple[Pubkey, int]:
         """Get the registry PDA"""
         return Pubkey.find_program_address(

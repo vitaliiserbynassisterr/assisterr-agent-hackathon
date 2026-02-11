@@ -6,16 +6,18 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies (gcc + gfortran for numpy, libopenblas for BLAS)
+# Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
-    gfortran \
-    libopenblas-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for better caching
-COPY requirements.txt .
+# Install core deps first (fast, no backtracking)
+COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
+
+# Install agentipy WITHOUT transitive deps (avoids 10+ min pip backtracking)
+# Our requirements.txt already provides the deps we actually use
+RUN pip install --no-cache-dir --no-deps agentipy>=2.1.0
 
 # Copy application code
 COPY . .

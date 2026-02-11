@@ -16,6 +16,8 @@ import { A2ANetworkView } from "@/components/A2ANetworkView";
 import { CertificationView } from "@/components/CertificationView";
 import { AuditTrailView } from "@/components/AuditTrailView";
 import { DeFiIntelligenceView } from "@/components/DeFiIntelligenceView";
+import { EconomicAutonomyView } from "@/components/EconomicAutonomyView";
+import { AdaptiveBehaviorView } from "@/components/AdaptiveBehaviorView";
 
 export default function Home() {
   const { connection } = useConnection();
@@ -165,7 +167,10 @@ export default function Home() {
                     NFT Identity
                   </span>
                   <span className="px-4 py-2 rounded-lg bg-[rgba(245,158,11,0.1)] border border-[rgba(245,158,11,0.3)] text-[#f59e0b]">
-                    AgentiPy DeFi
+                    Economic Autonomy
+                  </span>
+                  <span className="px-4 py-2 rounded-lg bg-[rgba(34,211,238,0.1)] border border-[rgba(34,211,238,0.3)] text-[#22d3ee]">
+                    Adaptive Intelligence
                   </span>
                 </div>
               </div>
@@ -336,6 +341,16 @@ export default function Home() {
         {/* Live DeFi Intelligence - powered by AgentiPy */}
         <div className="mb-10">
           <DeFiIntelligenceView />
+        </div>
+
+        {/* Agent Economic Autonomy - SOL micropayments */}
+        <div className="mb-10">
+          <EconomicAutonomyView />
+        </div>
+
+        {/* Adaptive Behavior Engine - condition-triggered intelligence */}
+        <div className="mb-10">
+          <AdaptiveBehaviorView />
         </div>
 
         {/* Register Agent */}
