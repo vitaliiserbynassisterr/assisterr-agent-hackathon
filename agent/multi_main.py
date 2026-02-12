@@ -61,7 +61,7 @@ LLM_JUDGE_MODEL = os.getenv("LLM_JUDGE_MODEL", "claude-haiku-4-5-20251001")
 LLM_JUDGE_PROVIDER = os.getenv("LLM_JUDGE_PROVIDER", "anthropic")
 # Answer generation: prefer Groq (free) over Anthropic for cost savings
 ANSWER_PROVIDER = os.getenv("ANSWER_PROVIDER", "groq" if GROQ_API_KEY else "anthropic")
-ANSWER_MODEL = os.getenv("ANSWER_MODEL", "llama-3.3-70b-versatile" if GROQ_API_KEY else "claude-haiku-4-5-20251001")
+ANSWER_MODEL = os.getenv("ANSWER_MODEL", "meta-llama/llama-4-maverick-17b-128e-instruct" if GROQ_API_KEY else "claude-haiku-4-5-20251001")
 
 logging.basicConfig(
     level=logging.INFO,
@@ -1975,7 +1975,7 @@ AGENT_CONFIGS = [
         "slug": "alpha",
         "personality": "defi",
         "capabilities": "defi-analysis,yield-farming,amm-math,cross-agent-discovery,agentipy-defi",
-        # Answer model: Groq Llama 3.3 70B (best quality, free)
+        # Answer model: Groq Llama 3.3 70B (proven reliable, best balance)
         # Judge: Anthropic (shared, fair scoring)
         "model_provider": "anthropic",
         "model_name": "claude-haiku-4-5-20251001",
@@ -1987,22 +1987,22 @@ AGENT_CONFIGS = [
         "slug": "beta",
         "personality": "security",
         "capabilities": "security-audit,vulnerability-scan,threat-detection,cross-agent-discovery,agentipy-defi",
-        # Answer model: Groq Qwen 3 32B (different architecture, good reasoning)
+        # Answer model: Llama 4 Maverick 17B MoE (128 experts, cutting-edge accuracy)
         "model_provider": "anthropic",
         "model_name": "claude-haiku-4-5-20251001",
         "answer_provider": "groq",
-        "answer_model": "qwen/qwen3-32b",
+        "answer_model": "meta-llama/llama-4-maverick-17b-128e-instruct",
     },
     {
         "name": "PoI-Gamma",
         "slug": "gamma",
         "personality": "solana",
         "capabilities": "solana-dev,pda-analysis,anchor-expert,cross-agent-discovery,agentipy-defi",
-        # Answer model: Groq Llama 3.1 8B (fast, lightweight, diverse eval)
+        # Answer model: GPT-OSS 120B (largest open model available, highest quality)
         "model_provider": "anthropic",
         "model_name": "claude-haiku-4-5-20251001",
         "answer_provider": "groq",
-        "answer_model": "llama-3.1-8b-instant",
+        "answer_model": "openai/gpt-oss-120b",
     },
 ]
 

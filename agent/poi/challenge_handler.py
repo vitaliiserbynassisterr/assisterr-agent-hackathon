@@ -136,17 +136,23 @@ class ChallengeHandler:
             except Exception as e:
                 logger.error(f"LLM inference failed: {e}")
 
-        # Generic fallback
+        # Generic fallback — NOT cached (avoid poisoning cache with low-quality answers)
+        is_fallback = False
         if answer is None:
             answer = f"I am {self.model_name}. Challenge received: {question}"
+            is_fallback = True
 
-        # Cache the answer for future identical questions
-        self._answer_cache[cache_key] = answer
+        # Only cache high-quality answers (LLM or demo), never fallbacks
+        if not is_fallback:
+            self._answer_cache[cache_key] = answer
+
         answer_hash = hashlib.sha256(answer.encode("utf-8")).hexdigest()
 
         confidence = 0.95 if self.llm_judge and self.llm_judge.is_llm_available else (
             1.0 if answer in self._demo_answers.values() else 0.8
         )
+        if is_fallback:
+            confidence = 0.3
 
         return ChallengeResponse(
             question=question,
