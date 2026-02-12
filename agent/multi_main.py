@@ -1037,6 +1037,8 @@ def create_agent_app(
     peers: list[str],
     model_provider: str = "anthropic",
     model_name: str = "claude-haiku-4-5-20251001",
+    answer_provider: str = "",
+    answer_model: str = "",
 ) -> tuple[FastAPI, AgentState]:
     """
     Create a FastAPI sub-app for one agent instance.
@@ -1066,8 +1068,8 @@ def create_agent_app(
         # Initialize LLM instances
         # 1. Answer LLM: per-agent model (Groq free tier preferred)
         # 2. Judge LLM: Anthropic for consistent, fair scoring across all agents
-        _agent_answer_provider = cfg.get("answer_provider", ANSWER_PROVIDER)
-        _agent_answer_model = cfg.get("answer_model", ANSWER_MODEL)
+        _agent_answer_provider = answer_provider or ANSWER_PROVIDER
+        _agent_answer_model = answer_model or ANSWER_MODEL
 
         # Pick the right API key for the answer provider
         _answer_key_map = {"groq": GROQ_API_KEY, "anthropic": ANTHROPIC_API_KEY, "openai": OPENAI_API_KEY}
@@ -1869,22 +1871,22 @@ AGENT_CONFIGS = [
         "slug": "beta",
         "personality": "security",
         "capabilities": "security-audit,vulnerability-scan,threat-detection,cross-agent-discovery,agentipy-defi",
-        # Answer model: Groq Mixtral (different architecture, good reasoning)
+        # Answer model: Groq Qwen 3 32B (different architecture, good reasoning)
         "model_provider": "anthropic",
         "model_name": "claude-haiku-4-5-20251001",
         "answer_provider": "groq",
-        "answer_model": "mixtral-8x7b-32768",
+        "answer_model": "qwen/qwen3-32b",
     },
     {
         "name": "PoI-Gamma",
         "slug": "gamma",
         "personality": "solana",
         "capabilities": "solana-dev,pda-analysis,anchor-expert,cross-agent-discovery,agentipy-defi",
-        # Answer model: Groq Gemma 2 (Google architecture, diverse eval)
+        # Answer model: Groq Llama 3.1 8B (fast, lightweight, diverse eval)
         "model_provider": "anthropic",
         "model_name": "claude-haiku-4-5-20251001",
         "answer_provider": "groq",
-        "answer_model": "gemma2-9b-it",
+        "answer_model": "llama-3.1-8b-instant",
     },
 ]
 
@@ -1955,6 +1957,8 @@ for cfg in AGENT_CONFIGS:
         peers=peers,
         model_provider=cfg.get("model_provider", "anthropic"),
         model_name=cfg.get("model_name", "claude-haiku-4-5-20251001"),
+        answer_provider=cfg.get("answer_provider", ""),
+        answer_model=cfg.get("answer_model", ""),
     )
     all_states.append(state)
     gateway.mount(f"/{cfg['slug']}", sub_app)

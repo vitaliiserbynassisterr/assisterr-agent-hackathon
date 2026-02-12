@@ -242,6 +242,10 @@ class ChallengeHandler:
             else:
                 answer = data["choices"][0]["message"]["content"].strip()
 
+            # Strip chain-of-thought tags (e.g. Qwen3 <think>...</think>)
+            import re
+            answer = re.sub(r"<think>.*?</think>\s*", "", answer, flags=re.DOTALL).strip()
+
             logger.info(f"LLM-generated answer ({self.llm_judge.provider}): {answer[:80]}...")
             return answer
 
