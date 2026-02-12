@@ -21,7 +21,10 @@
     "audit_trail",
     "nft_identity",
     "live_defi_intelligence",
-    "agentipy_integration"
+    "agentipy_integration",
+    "economic_autonomy",
+    "adaptive_behavior",
+    "sol_micropayments"
   ],
 
   "api": {
@@ -186,6 +189,40 @@
           "certifications": "array",
           "agents_certified": "number"
         }
+      },
+      "economics": {
+        "method": "GET",
+        "path": "/{slug}/economics",
+        "description": "Get agent economic activity: SOL sent/received, transaction history",
+        "response": {
+          "agent_name": "string",
+          "summary": "object (total_transactions, total_sol_sent, total_sol_received, net_sol)",
+          "fee_structure": "object",
+          "recent_transactions": "array"
+        }
+      },
+      "adaptive": {
+        "method": "GET",
+        "path": "/{slug}/adaptive",
+        "description": "Get adaptive behavior data: domain performance, triggers, behavior modes",
+        "response": {
+          "agent_name": "string",
+          "domain_performance": "object",
+          "weakest_domain": "string",
+          "adaptive_triggers": "object",
+          "behavior_modes": "object"
+        }
+      },
+      "wallet": {
+        "method": "GET",
+        "path": "/{slug}/wallet",
+        "description": "Get agent wallet balance and address",
+        "response": {
+          "agent_name": "string",
+          "pubkey": "string",
+          "balance_sol": "number",
+          "balance_lamports": "number"
+        }
       }
     }
   },
@@ -303,6 +340,27 @@
         "path": "/{slug}/defi/token/{token_mint}",
         "description": "Get token metadata and information"
       }
+    }
+  },
+
+  "economic_autonomy": {
+    "description": "Agents autonomously transact real SOL on Solana devnet",
+    "fee_structure": {
+      "challenge_fee": "0.001 SOL per cross-agent challenge",
+      "quality_reward": "0.0005 SOL for scores >= 70%"
+    },
+    "transaction_types": ["challenge_fee", "quality_reward"],
+    "network": "devnet",
+    "real_sol_transfers": true
+  },
+
+  "adaptive_behavior": {
+    "description": "Condition-triggered intelligence that adapts based on performance",
+    "modes": {
+      "reputation_drop_detection": "Triggers immediate challenge if reputation drops >=200 points",
+      "new_peer_detection": "Challenges new peers immediately upon discovery",
+      "weak_domain_focus": "Prioritizes questions from weakest domain for self-improvement",
+      "difficulty_scaling": "Increases difficulty when scoring >85%, decreases below 60%"
     }
   },
 

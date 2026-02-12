@@ -202,14 +202,15 @@ Focus on demonstrating:
 ## Deployment
 
 ### Dashboard (Vercel)
-- Auto-deploys on git push to main
-- URL: https://agent-poi.vercel.app
+- Deploy via `npx vercel --prod --yes` from `app/` directory
+- URL: https://app-serbyns-projects-d9324b42.vercel.app
 
-### Python Agents (Render - Multi-Agent)
-- Alpha (DeFi): https://agent-poi-alpha.onrender.com
-- Beta (Security): https://agent-poi-beta.onrender.com
-- Gamma (Solana): https://agent-poi-gamma.onrender.com
-- Each agent has A2A peers configured, they challenge each other autonomously
+### Python Agents (Render - Single Multi-Agent Service)
+- URL: https://assisterr-agent-hackathon.onrender.com
+- Service ID: srv-d630c2u8alac738qm680
+- Routes: /alpha/*, /beta/*, /gamma/*, /health, /network
+- All 3 agents run in ONE process (multi-agent mode)
+- Auto-deploys from vitamin33/agent-poi main branch
 
 ### Local Multi-Agent Demo
 ```bash
@@ -222,8 +223,9 @@ docker compose -f docker-compose.multi-agent.yml up --build
 
 | Resource | URL/Value |
 |----------|-----------|
-| Dashboard | https://agent-poi.vercel.app |
-| skill.json | https://agent-poi.vercel.app/skill.json |
+| Dashboard | https://app-serbyns-projects-d9324b42.vercel.app |
+| skill.json | https://app-serbyns-projects-d9324b42.vercel.app/skill.json |
+| Agent API | https://assisterr-agent-hackathon.onrender.com |
 | Program ID | EQ2Zv3cTDBzY1PafPz2WDoup6niUv6X8t9id4PBACL38 |
 | GitHub | https://github.com/vitamin33/agent-poi |
 | Solana Explorer | https://explorer.solana.com/address/EQ2Zv3cTDBzY1PafPz2WDoup6niUv6X8t9id4PBACL38?cluster=devnet |
