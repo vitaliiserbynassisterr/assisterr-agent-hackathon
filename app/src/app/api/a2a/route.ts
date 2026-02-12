@@ -54,7 +54,7 @@ async function fetchAggregatedInteractions(): Promise<AgentInteractions> {
     total_interactions: fulfilled.reduce((s, d) => s + d.summary.total_interactions, 0),
     successful_on_chain: fulfilled.reduce((s, d) => s + d.summary.successful_on_chain, 0),
     http_only: fulfilled.reduce((s, d) => s + d.summary.http_only, 0),
-    unique_peers: fulfilled.reduce((s, d) => s + d.summary.unique_peers, 0),
+    unique_peers: fulfilled.length,
   };
 
   return {

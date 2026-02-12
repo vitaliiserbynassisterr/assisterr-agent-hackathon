@@ -716,7 +716,7 @@ export function A2ANetworkView({ agentUrl }: A2ANetworkViewProps) {
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[rgba(16,185,129,0.06)] border border-[rgba(16,185,129,0.2)]">
             <span className="w-1.5 h-1.5 rounded-full bg-[#10b981] status-live" />
             <span className="text-xs text-[#10b981] font-medium">
-              {peersData?.online_peers ?? 0} peers
+              {(peersData?.online_peers ?? 0) + (peersData ? 1 : 0)} agents
             </span>
           </div>
           <svg
