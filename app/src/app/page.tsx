@@ -15,7 +15,6 @@ import { SecurityDashboard } from "@/components/SecurityDashboard";
 import { A2ANetworkView } from "@/components/A2ANetworkView";
 import { CertificationView } from "@/components/CertificationView";
 import { AuditTrailView } from "@/components/AuditTrailView";
-import { DeFiIntelligenceView } from "@/components/DeFiIntelligenceView";
 import { EconomicAutonomyView } from "@/components/EconomicAutonomyView";
 import { AdaptiveBehaviorView } from "@/components/AdaptiveBehaviorView";
 
@@ -336,11 +335,6 @@ export default function Home() {
         {/* Verifiable Audit Trail */}
         <div className="mb-10">
           <AuditTrailView />
-        </div>
-
-        {/* Live DeFi Intelligence - powered by AgentiPy */}
-        <div className="mb-10">
-          <DeFiIntelligenceView />
         </div>
 
         {/* Agent Economic Autonomy - SOL micropayments */}
